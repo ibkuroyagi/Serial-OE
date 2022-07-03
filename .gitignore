@@ -1,0 +1,38 @@
+# general
+*~
+*.pyc
+\#*\#
+.\#*
+*DS_Store
+out.txt
+asd_tools.egg-info/
+doc/_build
+slurm-*.out
+tmp*
+.eggs/
+.hypothesis/
+.idea
+.backup/
+.pytest_cache/
+__pycache__/
+.coverage*
+coverage.xml*
+.vscode*
+.nfs*
+.ipynb_checkpoints
+@eaDir/
+q/
+*.db
+*.log
+*.ipynb
+# recipe related
+scripts/data
+scripts/downloads
+scripts/dump*
+scripts/exp*
+scripts/*ipynb
+# tools related
+tools/pytorch-image-models/
+tools/venv/
+tools/miniconda.sh
+tools/activate_python.sh
