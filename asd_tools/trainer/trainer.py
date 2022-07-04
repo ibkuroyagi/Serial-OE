@@ -50,7 +50,7 @@ class MetricOECTrainer(object):
         self.epoch_valid_pred_machine = np.empty((0, 1))
         self.epoch_valid_y_machine = np.empty((0, 1))
         self.epoch_valid_y_section = np.empty(0)
-        self.epoch_valid_pred_section = np.empty((0, 6))
+        self.epoch_valid_pred_section = np.empty((0, config["model_params"]["out_dim"]))
         self.total_train_loss = defaultdict(float)
         self.total_valid_loss = defaultdict(float)
         self.best_loss = 99999
@@ -135,7 +135,9 @@ class MetricOECTrainer(object):
         machine = machine.unsqueeze(1)
         section = batch["section"].to(self.device)
         if self.config["section_loss_type"] == "BCEWithLogitsLoss":
-            section = torch.nn.functional.one_hot(section, num_classes=6).float()
+            section = torch.nn.functional.one_hot(
+                section, num_classes=self.config["model_params"]["out_dim"]
+            ).float()
         wave = batch["wave"].to(self.device)
         if self.config.get("PitchShift") is not None:
             if np.random.rand() < self.config.get("apply_rate", 1.0):
@@ -226,7 +228,9 @@ class MetricOECTrainer(object):
         section_idx = batch["machine"].bool()
         section = batch["section"].to(self.device)[section_idx]
         if self.config["section_loss_type"] == "BCEWithLogitsLoss":
-            section = torch.nn.functional.one_hot(section, num_classes=6).float()
+            section = torch.nn.functional.one_hot(
+                section, num_classes=self.config["model_params"]["out_dim"]
+            ).float()
         with torch.no_grad():
             y_ = self.model(batch["wave"].to(self.device))
             machine_loss = (
@@ -305,7 +309,9 @@ class MetricOECTrainer(object):
         self.epoch_valid_pred_machine = np.empty((0, 1))
         self.epoch_valid_y_machine = np.empty((0, 1))
         self.epoch_valid_y_section = np.empty(0)
-        self.epoch_valid_pred_section = np.empty((0, 6))
+        self.epoch_valid_pred_section = np.empty(
+            (0, self.config["model_params"]["out_dim"])
+        )
         self.total_valid_loss = defaultdict(float)
 
     def _write_to_tensorboard(self, loss, steps_per_epoch=1):

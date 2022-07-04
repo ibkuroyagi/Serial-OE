@@ -18,7 +18,6 @@ dumpdir=dump # directory to dump features
 expdir=exp
 # training related setting
 tag=audioset_v000 # tag for directory to save model
-target_mod=3
 valid_ratio=0.1
 audioset_dir=/path/to/AudioSet/audios
 audioset_pow=21
@@ -63,7 +62,7 @@ if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
 fi
 
 if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
-    log "Stage 1: Normalize wave data."
+    log "Stage 1: Dump wave data."
     for machine in "${machines[@]}"; do
         train_set="dev/${machine}/train"
         valid_set="dev/${machine}/test"
@@ -79,33 +78,33 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
                 --dumpdir "${dumpdir}/${name}" \
                 --statistic_path "${statistic_path}" \
                 --verbose "${verbose}"
-            log "Successfully finished Normalize ${name}."
+            log "Successfully finished dump ${name}."
         done
     done
-    # log "Create Audioset scp."
-    # # shellcheck disable=SC1091
-    # local/get_audioset_scp.sh "${audioset_dir}" "${dumpdir}/audioset"
-    # split_scps=""
-    # for i in $(seq 1 "${n_jobs}"); do
-    #     split_scps+=" ${dumpdir}/audioset/unbalanced_train_segments/log/wav.${i}.scp"
-    # done
-    # # shellcheck disable=SC2086
-    # utils/split_scp.pl "${dumpdir}/audioset/unbalanced_train_segments/wav.scp" ${split_scps}
-    # log "Creat dump file start. ${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.*.log"
-    # pids=()
-    # (
-    #     # shellcheck disable=SC2086,SC2154
-    #     ${train_cmd} --max-jobs-run 64 JOB=1:"${n_jobs}" "${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.JOB.log" \
-    #         python -m asd_tools.bin.normalize_wave \
-    #         --download_dir "${dumpdir}/audioset/unbalanced_train_segments/log/wav.JOB.scp" \
-    #         --dumpdir "${dumpdir}/audioset/unbalanced_train_segments/part.JOB" \
-    #         --verbose "${verbose}"
-    # ) &
-    # pids+=($!)
-    # i=0
-    # for pid in "${pids[@]}"; do wait "${pid}" || ((++i)); done
-    # [ "${i}" -gt 0 ] && echo "$0: ${i} background jobs are failed." && exit 1
-    # log "Successfully finished creat Audioset dump."
+    log "Create Audioset scp."
+    # shellcheck disable=SC1091
+    local/get_audioset_scp.sh "${audioset_dir}" "${dumpdir}/audioset"
+    split_scps=""
+    for i in $(seq 1 "${n_jobs}"); do
+        split_scps+=" ${dumpdir}/audioset/unbalanced_train_segments/log/wav.${i}.scp"
+    done
+    # shellcheck disable=SC2086
+    utils/split_scp.pl "${dumpdir}/audioset/unbalanced_train_segments/wav.scp" ${split_scps}
+    log "Creat dump file start. ${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.*.log"
+    pids=()
+    (
+        # shellcheck disable=SC2086,SC2154
+        ${train_cmd} --max-jobs-run 64 JOB=1:"${n_jobs}" "${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.JOB.log" \
+            python -m asd_tools.bin.normalize_wave \
+            --download_dir "${dumpdir}/audioset/unbalanced_train_segments/log/wav.JOB.scp" \
+            --dumpdir "${dumpdir}/audioset/unbalanced_train_segments/part.JOB" \
+            --verbose "${verbose}"
+    ) &
+    pids+=($!)
+    i=0
+    for pid in "${pids[@]}"; do wait "${pid}" || ((++i)); done
+    [ "${i}" -gt 0 ] && echo "$0: ${i} background jobs are failed." && exit 1
+    log "Successfully finished creat Audioset dump."
 fi
 
 end_str+="_${valid_ratio}"
@@ -204,6 +203,7 @@ if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     # shellcheck disable=SC2154,SC2086
     ${cuda_cmd} "${outdir}/infer_${pos_machine}_${feature}${tail_name}_${tag}.log" \
         python -m asd_tools.bin.infer \
+        --pos_machine "${pos_machine}" \
         --checkpoints ${checkpoints} \
         --config "${conf}" \
         --feature "${feature}" \

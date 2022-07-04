@@ -1,11 +1,11 @@
 #!/bin/bash
 
 stage=1
-start_stage=1
+start_stage=3
 no=audioset_v000
 feature=_embed
 use_10sec=false
-audioset_pow=21
+audioset_pow=0
 valid_ratio=0.1
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1

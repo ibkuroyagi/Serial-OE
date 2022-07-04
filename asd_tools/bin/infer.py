@@ -48,6 +48,9 @@ def main():
         description="Train outlier exposure model (See detail in asd_tools/bin/train.py)."
     )
     parser.add_argument(
+        "--pos_machine", type=str, required=True, help="Name of positive machine."
+    )
+    parser.add_argument(
         "--config", type=str, required=True, help="yaml format configuration file."
     )
     parser.add_argument(
@@ -109,7 +112,13 @@ def main():
         config = yaml.load(f, Loader=yaml.Loader)
     config.update(vars(args))
     seed_everything(seed=config["seed"])
-    n_section = 7
+    n_section = 6 if args.pos_machine == "ToyConveyor" else 7
+    if args.pos_machine in ["fan", "pump", "slider", "valve"]:
+        dev_section = [0, 2, 4, 6]
+    elif args.pos_machine == "ToyCar":
+        dev_section = [0, 1, 2, 3]
+    elif args.pos_machine == "ToyConveyor":
+        dev_section = [0, 1, 2]
     for key, value in config.items():
         logging.info(f"{key} = {value}")
     if args.feature == "":
@@ -137,7 +146,7 @@ def main():
         eval_df = pd.read_csv(os.path.join(checkpoint_dir, checkpoint + "_eval.csv"))
         if args.feature == "_none":
             post_cols += ["pred_section"]
-            for section_id in range(6):
+            for section_id in range(n_section):
                 eval_df.loc[
                     eval_df["section"] == section_id, "pred_section"
                 ] = eval_df.loc[
@@ -212,8 +221,11 @@ def main():
             columns={"is_normal_median": "is_normal", "section_median": "section"},
             inplace=True,
         )
-        agg_df.loc[agg_df["section"] <= 2, "mode"] = "dev"
-        agg_df.loc[agg_df["section"] >= 3, "mode"] = "eval"
+        dev_idx = np.zeros(len(agg_df)).astype(bool)
+        for sec in dev_section:
+            dev_idx |= agg_df["section"] == sec
+        agg_df.loc[dev_idx, "mode"] = "dev"
+        agg_df.loc[~dev_idx, "mode"] = "eval"
         agg_path = os.path.join(
             checkpoint_dir, checkpoint + f"{args.feature}{args.use_norm}_agg.csv"
         )

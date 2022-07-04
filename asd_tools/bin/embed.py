@@ -111,6 +111,8 @@ def main():
     with open(args.config) as f:
         config = yaml.load(f, Loader=yaml.Loader)
     config.update(vars(args))
+    if "ToyConveyor" in args.valid_pos_machine_scp:
+        config["model_params"]["out_dim"] = 6
     if args.use_10sec == "true":
         config["sec"] = 10
         config["n_split"] = 1
@@ -191,7 +193,7 @@ def main():
             )
         for mode, loader in loader_dict.items():
             pred_machine = np.empty((0, 1))
-            pred_section = np.empty((0, 6))
+            pred_section = np.empty((0, config["model_params"]["out_dim"]))
             embed = np.empty((0, config["model_params"]["embedding_size"]))
             path_list = np.empty((0, 1))
             split_list = np.empty((0, 1))
@@ -230,7 +232,9 @@ def main():
             embed_cols = [
                 f"e{i}" for i in range(config["model_params"]["embedding_size"])
             ]
-            pred_section_cols = [f"pred_section{i}" for i in range(6)]
+            pred_section_cols = [
+                f"pred_section{i}" for i in range(config["model_params"]["out_dim"])
+            ]
             columns = (
                 [
                     "path",

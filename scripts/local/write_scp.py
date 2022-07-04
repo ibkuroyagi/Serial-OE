@@ -84,7 +84,7 @@ def write_dev(args):
     ) as g:
         for path in all_h5_list:
             g.write(f"{path}\n")
-    label_list = [int(label.split("/")[-1].split("_")[1]) for label in all_h5_list]
+    label_list = [int(label.split("/")[-1].split("_")[2]) for label in all_h5_list]
     skf = StratifiedKFold(
         n_splits=int(1 / args.valid_ratio), shuffle=True, random_state=42
     )

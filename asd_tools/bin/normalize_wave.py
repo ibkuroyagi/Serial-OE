@@ -67,7 +67,10 @@ def main():
     if not os.path.isfile(args.statistic_path):
         wave_fname_list = os.listdir(args.download_dir)
         # wave_fname_list = [fname for fname in wave_fname_list if "target" not in fname]
-        tmp = np.zeros((len(wave_fname_list), 16000 * 10))
+        wave, _ = librosa.load(
+            os.path.join(args.download_dir, wave_fname_list[0]), sr=sr
+        )
+        tmp = np.zeros((len(wave_fname_list), len(wave)))
         for i, fname in enumerate(tqdm(wave_fname_list)):
             logging.info(f"fname:{fname}")
             tmp[i], _ = librosa.load(os.path.join(args.download_dir, fname), sr=sr)

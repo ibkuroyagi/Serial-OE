@@ -186,10 +186,10 @@ def main():
         drop_last=False,
     )
     logging.info(f"The number of training files = {len(train_dataset)}.")
-    logging.info(f"train pos_source = {len(train_dataset.pos_source_files)}.")
+    logging.info(f"train pos_source = {len(train_dataset.pos_files)}.")
     logging.info(f"train neg = {len(train_dataset.neg_files)}.")
     logging.info(f"The number of validation files = {len(valid_dataset)}.")
-    logging.info(f"valid pos_source = {len(valid_dataset.pos_source_files)}.")
+    logging.info(f"valid pos_source = {len(valid_dataset.pos_files)}.")
     logging.info(f"valid neg = {len(valid_dataset.neg_files)}.")
     train_collator = WaveCollator(
         sf=config["sf"],
@@ -224,6 +224,8 @@ def main():
 
     # define models and optimizers
     model_class = getattr(asd_tools.models, config["model_type"])
+    if config["pos_machine"] == "ToyConveyor":
+        config["model_params"]["out_dim"] = 6
     model = model_class(**config["model_params"]).to(device)
     logging.info(model)
     params_cnt = count_params(model)
@@ -263,7 +265,7 @@ def main():
             else:
                 n_pos = config["batch_size"] // 2
             config["scheduler_params"]["steps_per_epoch"] = (
-                len(train_dataset.pos_source_files) // n_pos + 1
+                len(train_dataset.pos_files) // n_pos + 1
             )
         scheduler = scheduler_class(optimizer=optimizer, **config["scheduler_params"])
 
