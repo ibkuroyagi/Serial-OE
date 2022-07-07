@@ -129,7 +129,7 @@ def main():
         in_sample_norm=config.get("in_sample_norm", False),
     )
     logging.info(f"The number of validation files = {len(valid_dataset)}.")
-    logging.info(f"pos_source = {len(valid_dataset.pos_source_files)}.")
+    logging.info(f"pos_source = {len(valid_dataset.pos_files)}.")
 
     collator = WaveEvalCollator(
         sf=config["sf"],

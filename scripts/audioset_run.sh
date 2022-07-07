@@ -199,7 +199,7 @@ if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
 fi
 
 if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
-    log "Stage 5: Inference start. See the progress via ${outdir}/infer_${pos_machine}_${feature}${tail_name}_${tag}.log."
+    log "Stage 5: Inference start. See the progress via ${outdir}/infer_${pos_machine}${feature}${tail_name}_${tag}.log."
     # shellcheck disable=SC2154,SC2086
     ${cuda_cmd} "${outdir}/infer_${pos_machine}_${feature}${tail_name}_${tag}.log" \
         python -m asd_tools.bin.infer \

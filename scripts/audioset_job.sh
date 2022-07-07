@@ -5,17 +5,17 @@ start_stage=3
 no=audioset_v000
 feature=_embed
 use_10sec=false
-audioset_pow=0
+audioset_pow=21
 valid_ratio=0.1
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 
-epochs="50 100 150 200 250 300"
+epochs="20 40 60 80 100"
 
 set -euo pipefail
-
-# machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
-machines=("fan")
+machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
+# machines=("ToyConveyor")
+# machines=("pump" "slider" "ToyCar" "ToyConveyor" "valve")
 resume=""
 tag=${no}
 if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then

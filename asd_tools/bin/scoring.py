@@ -12,6 +12,7 @@ import sys
 import matplotlib
 import numpy as np
 import pandas as pd
+from statistics import mean
 from scipy.stats import hmean
 from sklearn.metrics import roc_auc_score
 
@@ -64,31 +65,45 @@ def get_args():
 
 def main(args):
     """Run scoring process."""
-    dev_hauc_cols = []
+    hdev_columns = []
+    heval_columns = []
     dev_columns = []
     eval_columns = []
-    use_eval = True
-    modes = ["dev", "eval"] if use_eval else ["dev"]
-    sections = {"dev": [0, 1, 2], "eval": [3, 4, 5]}
+    pdev_columns = []
+    peval_columns = []
+    modes = ["dev", "eval"]
     for machine in ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]:
-        dev_columns += [f"dev_{machine}_hauc"]
-        dev_hauc_cols += [f"dev_{machine}_hauc"]
-        if use_eval:
-            eval_columns += [f"eval_{machine}_hauc"]
+        hdev_columns += [f"dev_{machine}_hauc"]
+        heval_columns += [f"eval_{machine}_hauc"]
+        dev_columns += [f"dev_{machine}_auc"]
+        eval_columns += [f"eval_{machine}_auc"]
+        pdev_columns += [f"dev_{machine}_pauc"]
+        peval_columns += [f"eval_{machine}_pauc"]
 
     agg_df = pd.read_csv(args.agg_checkpoints[0])
     post_processes = list(agg_df.columns)
     for rm in ["path", "is_normal", "section", "mode"]:
         post_processes.remove(rm)
-    columns = ["path", "dev_hauc"]
-    if use_eval:
-        columns += [
-            "eval_hauc",
-            "hauc",
-        ]
-    columns += eval_columns + dev_columns
+    columns = [
+        "path",
+        "dev_hauc",
+        "eval_hauc",
+        "hauc",
+        "dev_auc",
+        "eval_auc",
+        "auc",
+        "dev_pauc",
+        "eval_pauc",
+    ]
+    columns += (
+        heval_columns
+        + hdev_columns
+        + eval_columns
+        + dev_columns
+        + peval_columns
+        + pdev_columns
+    )
     score_df = pd.DataFrame(index=post_processes, columns=columns)
-
     save_path = os.path.join(
         "/".join(
             ["exp", "all"] + os.path.dirname(args.agg_checkpoints[0]).split("/")[2:]
@@ -100,29 +115,41 @@ def main(args):
         logging.info(f"Loaded {agg_path}.")
         agg_df = pd.read_csv(agg_path)
         machine = agg_path.split("/")[1]
+        if machine == "ToyCar":
+            dev_sections = [0, 1, 2, 3]
+            eval_sections = [4, 5, 6]
+        elif machine == "ToyConveyor":
+            dev_sections = [0, 1, 2]
+            eval_sections = [3, 4, 5]
+        else:
+            dev_sections = [0, 2, 4, 6]
+            eval_sections = [1, 3, 5]
+        sections = {"dev": dev_sections, "eval": eval_sections}
         for post_process in post_processes:
             for mode in modes:
                 auc_list = []
                 pauc_list = []
+                mauc = 1.1
                 for section in sections[mode]:
-                    target_idx = (agg_df["mode"] == mode) & (
-                        agg_df["section"] == section
+                    target_idx = agg_df["section"] == section
+                    auc = roc_auc_score(
+                        1 - agg_df.loc[target_idx, "is_normal"],
+                        -agg_df.loc[target_idx, post_process],
                     )
-                    auc_list.append(
-                        roc_auc_score(
-                            1 - agg_df.loc[target_idx, "is_normal"],
-                            -agg_df.loc[target_idx, post_process],
-                        )
+                    auc_list.append(auc)
+                    score_df.loc[post_process, f"{machine}_{section}_auc"] = auc
+                    if mauc > auc:
+                        mauc = auc
+                    pauc = roc_auc_score(
+                        1 - agg_df.loc[target_idx, "is_normal"],
+                        -agg_df.loc[target_idx, post_process],
+                        max_fpr=0.1,
                     )
-                    # score_df.loc[post_process, f"{mode}_{machine}_auc"] = auc
-                    pauc_list.append(
-                        roc_auc_score(
-                            1 - agg_df.loc[target_idx, "is_normal"],
-                            -agg_df.loc[target_idx, post_process],
-                            max_fpr=0.1,
-                        )
-                    )
-                    # score_df.loc[post_process, f"{mode}_{machine}_pauc"] = pauc
+                    pauc_list.append(pauc)
+                    score_df.loc[post_process, f"{machine}_{section}_pauc"] = pauc
+                score_df.loc[post_process, f"{mode}_{machine}_mauc"] = mauc
+                score_df.loc[post_process, f"{mode}_{machine}_auc"] = mean(auc_list)
+                score_df.loc[post_process, f"{mode}_{machine}_pauc"] = mean(pauc_list)
                 score_list = auc_list + pauc_list
                 score_df.loc[post_process, f"{mode}_{machine}_hauc"] = hmean(score_list)
                 score_df.loc[post_process, f"{mode}_{machine}_hauc_std"] = np.array(
@@ -130,15 +157,29 @@ def main(args):
                 ).std()
     for post_process in post_processes:
         score_df.loc[post_process, "dev_hauc"] = hmean(
-            score_df.loc[post_process, dev_hauc_cols].values.flatten()
+            score_df.loc[post_process, hdev_columns].values.flatten()
         )
-        if use_eval:
-            score_df.loc[post_process, "eval_hauc"] = hmean(
-                score_df.loc[post_process, eval_columns].values.flatten()
-            )
-            score_df.loc[post_process, "hauc"] = hmean(
-                score_df.loc[post_process, dev_columns + eval_columns].values.flatten()
-            )
+        score_df.loc[post_process, "eval_hauc"] = hmean(
+            score_df.loc[post_process, heval_columns].values.flatten()
+        )
+        score_df.loc[post_process, "hauc"] = hmean(
+            score_df.loc[post_process, hdev_columns + heval_columns].values.flatten()
+        )
+        score_df.loc[post_process, "dev_auc"] = mean(
+            score_df.loc[post_process, dev_columns].values.flatten()
+        )
+        score_df.loc[post_process, "eval_auc"] = mean(
+            score_df.loc[post_process, eval_columns].values.flatten()
+        )
+        score_df.loc[post_process, "auc"] = mean(
+            score_df.loc[post_process, dev_columns + eval_columns].values.flatten()
+        )
+        score_df.loc[post_process, "dev_pauc"] = mean(
+            score_df.loc[post_process, pdev_columns].values.flatten()
+        )
+        score_df.loc[post_process, "eval_pauc"] = mean(
+            score_df.loc[post_process, peval_columns].values.flatten()
+        )
     score_df = score_df.reset_index().rename(columns={"index": "post_process"})
     score_df.to_csv(save_path, index=False)
     logging.info(f"Successfully saved at {save_path}")

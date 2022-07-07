@@ -3,7 +3,7 @@
 ###########################################################
 model_type: ASDModel
 model_params:
-  backbone: tf_efficientnet_b0_ns
+  backbone: mobilenetv2_100
   neck: option-F
   embedding_size: 128
   gem_pooling: false
@@ -35,8 +35,6 @@ mixup_alpha: 0.2
 ###########################################################
 #                  DATA LOADER SETTING                    #
 ###########################################################
-
-
 accum_grads: 1
 batch_size: 128
 n_pos: 64 # Batch size.

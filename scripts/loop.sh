@@ -1,5 +1,12 @@
 #!/bin/bash
-rm -rf dump/dev dump/eval
-ln -s /fsws1/i_kuroyanagi/dcase2020/dump/dev dump
-ln -s /fsws1/i_kuroyanagi/dcase2020/dump/eval dump
-echo "Finish Copy!"
+
+# for no in {000..003}; do
+#     for audioset_pow in 0 21; do
+#         sbatch ./audioset_job.sh --no "audioset_v${no}" --audioset_pow ${audioset_pow} --stage 1 --feature "" --start_stage 5
+#     done
+# done
+for no in {000..003}; do
+    for audioset_pow in 0 21; do
+        sbatch ./audioset_job.sh --no "audioset_v${no}" --audioset_pow ${audioset_pow} --stage 2 --feature "_embed"
+    done
+done
