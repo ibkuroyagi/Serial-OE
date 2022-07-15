@@ -18,6 +18,12 @@ def get_args():
         description="Split training data and write the path."
     )
     parser.add_argument(
+        "--dataset",
+        default="dcase",
+        type=str,
+        help="Select one of audioset, uav or idmt.",
+    )
+    parser.add_argument(
         "--dumpdir",
         default=[],
         type=str,
@@ -58,6 +64,23 @@ def write_audioset(args):
             for h5_file in sampled_list:
                 g.write(f"{h5_file}\n")
         print(f"Wrote {scp_path}, it contain {len(sampled_list)} files.")
+
+
+def write_outlier(args):
+    """Run write outlier scp."""
+    h5_list = [
+        path for path in sorted(glob.glob(os.path.join(args.dumpdir[0], "*.h5")))
+    ]
+    print(f"{args.dataset} has {len(h5_list)} files.")
+    scp_path = os.path.join(args.dumpdir[0], f"{args.dataset}.scp")
+    with codecs.open(
+        scp_path,
+        "w",
+        encoding="utf-8",
+    ) as g:
+        for h5_file in h5_list:
+            g.write(f"{h5_file}\n")
+    print(f"Wrote {scp_path}, it contain {len(h5_list)} files.")
 
 
 def write_eval(args):
@@ -108,9 +131,11 @@ def write_dev(args):
 
 if __name__ == "__main__":
     args = get_args()
-    if args.valid_ratio == 0:
+    if (args.valid_ratio == 0) and (args.dataset == "dcase"):
         write_eval(args)
-    elif args.max_audioset_size_2_pow > 0:
-        write_audioset(args)
-    else:
+    elif (args.valid_ratio > 0) and (args.dataset == "dcase"):
         write_dev(args)
+    elif (args.max_audioset_size_2_pow > 0) and (args.dataset == "audioset"):
+        write_audioset(args)
+    elif (args.dataset == "uav") or (args.dataset == "idmt"):
+        write_outlier(args)

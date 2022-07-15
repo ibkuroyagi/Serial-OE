@@ -14,15 +14,20 @@ conf=conf/tuning/asd_model.audioset_v000.yaml
 resume=""
 pos_machine=fan
 # directory path setting
+download_dir=downloads
 dumpdir=dump # directory to dump features
 expdir=exp
 # training related setting
 tag=audioset_v000 # tag for directory to save model
 valid_ratio=0.1
+# outlier setting
+use_audioset=false
 audioset_dir=/path/to/AudioSet/audios
 audioset_pow=21
+use_uav=true
+use_idmt=true
 # inference related setting
-epochs="50 100 150 200 250 300"
+epochs="20 40 60 80 100"
 checkpoints=""
 use_10sec=false
 feature=_embed # "": using all features in training an anomalous detector.
@@ -58,7 +63,7 @@ fi
 
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     log "Download data."
-    local/download_data.sh downloads
+    local/download_data.sh "${download_dir}"
 fi
 
 if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
@@ -74,37 +79,63 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
             # shellcheck disable=SC2154
             ${train_cmd} --num_threads 1 "${dumpdir}/${name}/normalize_wave.log" \
                 python -m asd_tools.bin.normalize_wave \
-                --download_dir "downloads/${name}" \
+                --download_dir "${download_dir}/${name}" \
                 --dumpdir "${dumpdir}/${name}" \
                 --statistic_path "${statistic_path}" \
                 --verbose "${verbose}"
             log "Successfully finished dump ${name}."
         done
     done
-    log "Create Audioset scp."
-    # shellcheck disable=SC1091
-    local/get_audioset_scp.sh "${audioset_dir}" "${dumpdir}/audioset"
-    split_scps=""
-    for i in $(seq 1 "${n_jobs}"); do
-        split_scps+=" ${dumpdir}/audioset/unbalanced_train_segments/log/wav.${i}.scp"
-    done
-    # shellcheck disable=SC2086
-    utils/split_scp.pl "${dumpdir}/audioset/unbalanced_train_segments/wav.scp" ${split_scps}
-    log "Creat dump file start. ${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.*.log"
-    pids=()
-    (
-        # shellcheck disable=SC2086,SC2154
-        ${train_cmd} --max-jobs-run 64 JOB=1:"${n_jobs}" "${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.JOB.log" \
-            python -m asd_tools.bin.normalize_wave \
-            --download_dir "${dumpdir}/audioset/unbalanced_train_segments/log/wav.JOB.scp" \
-            --dumpdir "${dumpdir}/audioset/unbalanced_train_segments/part.JOB" \
+    if "${use_audioset}"; then
+        log "Creat Audioset scp."
+        # shellcheck disable=SC1091
+        local/get_audioset_scp.sh "${audioset_dir}" "${dumpdir}/audioset"
+        split_scps=""
+        for i in $(seq 1 "${n_jobs}"); do
+            split_scps+=" ${dumpdir}/audioset/unbalanced_train_segments/log/wav.${i}.scp"
+        done
+        # shellcheck disable=SC2086
+        utils/split_scp.pl "${dumpdir}/audioset/unbalanced_train_segments/wav.scp" ${split_scps}
+        log "Creat dump file start. ${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.*.log"
+        pids=()
+        (
+            # shellcheck disable=SC2086,SC2154
+            ${train_cmd} --max-jobs-run 64 JOB=1:"${n_jobs}" "${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.JOB.log" \
+                python -m asd_tools.bin.normalize_wave \
+                --download_dir "${dumpdir}/audioset/unbalanced_train_segments/log/wav.JOB.scp" \
+                --dumpdir "${dumpdir}/audioset/unbalanced_train_segments/part.JOB" \
+                --verbose "${verbose}"
+        ) &
+        pids+=($!)
+        i=0
+        for pid in "${pids[@]}"; do wait "${pid}" || ((++i)); done
+        [ "${i}" -gt 0 ] && echo "$0: ${i} background jobs are failed." && exit 1
+        log "Successfully finished creat Audioset dump."
+    fi
+    if "${use_uav}"; then
+        log "Creat dump of UAV-Propeller-Anomaly-Audio-Dataset."
+        log "See the progress via ${dumpdir}/uav/dump_outlier.log."
+        # shellcheck disable=SC2154,SC2086
+        ${train_cmd} "${dumpdir}/uav/dump_outlier.log" \
+            python local/dump_outlier.py \
+            --download_dir "${download_dir}/UAV-Propeller-Anomaly-Audio-Dataset" \
+            --dumpdir "${dumpdir}/uav" \
+            --dataset "uav" \
             --verbose "${verbose}"
-    ) &
-    pids+=($!)
-    i=0
-    for pid in "${pids[@]}"; do wait "${pid}" || ((++i)); done
-    [ "${i}" -gt 0 ] && echo "$0: ${i} background jobs are failed." && exit 1
-    log "Successfully finished creat Audioset dump."
+        log "Created dump of UAV-Propeller-Anomaly-Audio-Dataset."
+    fi
+    if "${use_idmt}"; then
+        log "Creat dump of IDMT-ISA-ELECTRIC-ENGINE."
+        log "See the progress via ${dumpdir}/idmt/dump_outlier.log."
+        # shellcheck disable=SC2154,SC2086
+        ${train_cmd} "${dumpdir}/idmt/dump_outlier.log" \
+            python local/dump_outlier.py \
+            --download_dir "${download_dir}/IDMT-ISA-ELECTRIC-ENGINE" \
+            --dumpdir "${dumpdir}/idmt" \
+            --dataset "idmt" \
+            --verbose "${verbose}"
+        log "Created dump of IDMT-ISA-ELECTRIC-ENGINE."
+    fi
 fi
 
 end_str+="_${valid_ratio}"
@@ -120,6 +151,7 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
         ${train_cmd} "${dumpdir}/${train_set}/write_scp${end_str}.log" \
             python local/write_scp.py \
             --dumpdir ${dumpdir}/${train_set} \
+            --dataset "dcase" \
             --valid_ratio "${valid_ratio}"
         log "Successfully splited ${dumpdir}/${train_set} train and valid data."
         log "All target data is in train${end_str}.scp"
@@ -128,17 +160,43 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
             ${train_cmd} "${dumpdir}/${name}/write_scp.log" \
                 python local/write_scp.py \
                 --dumpdir "${dumpdir}/${name}" \
+                --dataset "dcase" \
                 --valid_ratio 0
             log "Successfully write ${dumpdir}/${name}/eval.scp."
         done
         cat "${dumpdir}/eval/${machine}/test/eval.scp" >>"${dumpdir}/dev/${machine}/test/eval.scp"
     done
-    # shellcheck disable=SC2086
-    ${train_cmd} "${dumpdir}/audioset/unbalanced_train_segments/log/write_scp.log" \
-        python local/write_scp.py \
-        --dumpdir "${dumpdir}/audioset/unbalanced_train_segments" \
-        --max_audioset_size_2_pow 22
-    log "Successfully write ${dumpdir}/audioset/audioset_2__${audioset_pow}.scp."
+    if "${use_audioset}"; then
+        log "Creat scp of Audioset."
+        log "See the progress via ${dumpdir}/audioset/unbalanced_train_segments/log/write_scp.log."
+        # shellcheck disable=SC2086
+        ${train_cmd} "${dumpdir}/audioset/unbalanced_train_segments/log/write_scp.log" \
+            python local/write_scp.py \
+            --dumpdir "${dumpdir}/audioset/unbalanced_train_segments" \
+            --dataset "audioset" \
+            --max_audioset_size_2_pow 22
+        log "Successfully write ${dumpdir}/audioset/audioset_2__${audioset_pow}.scp."
+    fi
+    if "${use_uav}"; then
+        log "Creat scp of UAV-Propeller-Anomaly-Audio-Dataset."
+        log "See the progress via ${dumpdir}/uav/write_scp.log."
+        # shellcheck disable=SC2154,SC2086
+        ${train_cmd} "${dumpdir}/uav/write_scp.log" \
+            python local/write_scp.py \
+            --dumpdir "${dumpdir}/uav" \
+            --dataset "uav"
+        log "Created scp of UAV-Propeller-Anomaly-Audio-Dataset."
+    fi
+    if "${use_idmt}"; then
+        log "Creat scp of IDMT-ISA-ELECTRIC-ENGINE."
+        log "See the progress via ${dumpdir}/idmt/write_scp.log."
+        # shellcheck disable=SC2154,SC2086
+        ${train_cmd} "${dumpdir}/idmt/write_scp.log" \
+            python local/write_scp.py \
+            --dumpdir "${dumpdir}/idmt" \
+            --dataset "idmt"
+        log "Created scp of IDMT-ISA-ELECTRIC-ENGINE."
+    fi
 fi
 
 tag+="${end_str}_p${audioset_pow}"
