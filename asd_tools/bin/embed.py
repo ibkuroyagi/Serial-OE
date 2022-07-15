@@ -117,8 +117,10 @@ def main():
         config["sec"] = 10
         config["n_split"] = 1
     seed_everything(seed=config["seed"])
+    config["batch_size"] = config["n_pos"] + config["n_neg"]
     for key, value in config.items():
         logging.info(f"{key} = {value}")
+
     # get dataset
     valid_dataset = OutlierWaveASDDataset(
         pos_machine_scp=args.valid_pos_machine_scp,

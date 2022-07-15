@@ -148,6 +148,7 @@ def main():
     seed_everything(seed=config["seed"])
     with open(os.path.join(args.outdir, "config.yml"), "w") as f:
         yaml.dump(config, f, Dumper=yaml.Dumper)
+    config["batch_size"] = config["n_pos"] + config["n_neg"]
     for key, value in config.items():
         logging.info(f"{key} = {value}")
     # get dataset

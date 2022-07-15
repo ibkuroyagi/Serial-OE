@@ -38,7 +38,7 @@ mixup_alpha: 0.2
 
 
 accum_grads: 1
-batch_size: 128
+
 n_pos: 64 # Batch size.
 n_neg: 64
 pin_memory: true # Whether to pin memory in Pytorch DataLoader.

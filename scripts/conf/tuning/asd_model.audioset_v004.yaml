@@ -1,4 +1,4 @@
-# section_loss_lambda: 1.0, machine_loss_lambda: 0
+# gem_pooling: true
 ###########################################################
 #                NETWORK ARCHITECTURE SETTING             #
 ###########################################################
@@ -7,7 +7,7 @@ model_params:
   backbone: tf_efficientnet_b0_ns
   neck: option-F
   embedding_size: 128
-  gem_pooling: false
+  gem_pooling: true
   pretrained: true
   use_pos: false
   in_chans: 3
@@ -29,8 +29,8 @@ section_loss_type: BCEWithLogitsLoss
 section_loss_params:
   reduction: mean
 
-section_loss_lambda: 1.0
-machine_loss_lambda: 0
+section_loss_lambda: 10.0
+
 # mixup related
 mixup_alpha: 0.2
 ###########################################################

@@ -42,7 +42,6 @@ class OutlierWaveASDDataset(Dataset):
         )
         self.augmentation_params = augmentation_params
         self.transform = None
-        self.rng = np.random.default_rng()
         if len(augmentation_params) != 0:
             compose_list = []
             for key in self.augmentation_params.keys():
@@ -113,7 +112,7 @@ class OutlierWaveASDDataset(Dataset):
             if self.allow_cache and (self.caches_size > idx):
                 self.caches[idx] = items
         else:
-            items["wave"] = read_hdf5(path, f"wave{self.rng.integers(5)}")
+            items["wave"] = read_hdf5(path, read_random=True)
             if self.statistic is not None:
                 items["wave"] -= self.statistic["mean"]
                 items["wave"] /= self.statistic["std"]

@@ -39,13 +39,13 @@ def find_files(root_dir, query="*.wav", include_root_dir=True):
     return files
 
 
-def read_hdf5(hdf5_name, hdf5_path):
+def read_hdf5(hdf5_name, hdf5_path=None, read_random=False):
     """Read hdf5 dataset.
 
     Args:
         hdf5_name (str): Filename of hdf5 file.
         hdf5_path (str): Dataset name in hdf5 file.
-
+        read_random (bool): Read random content.
     Return:
         any: Dataset values.
 
@@ -55,7 +55,8 @@ def read_hdf5(hdf5_name, hdf5_path):
         sys.exit(1)
 
     hdf5_file = h5py.File(hdf5_name, "r")
-
+    if read_random:
+        hdf5_path = f"wave{random.randint(0, len(hdf5_file) - 1)}"
     if hdf5_path not in hdf5_file:
         logging.error(f"There is no such a data in {hdf5_name}. ({hdf5_path})")
         sys.exit(1)

@@ -1,15 +1,12 @@
-# section_loss_lambda: 1.0, machine_loss_lambda: 0
 ###########################################################
 #                NETWORK ARCHITECTURE SETTING             #
 ###########################################################
 model_type: ASDModel
 model_params:
   backbone: tf_efficientnet_b0_ns
-  neck: option-F
   embedding_size: 128
-  gem_pooling: false
-  pretrained: true
   use_pos: false
+  pretrained: true
   in_chans: 3
   n_fft: 2048
   hop_length: 256
@@ -29,8 +26,8 @@ section_loss_type: BCEWithLogitsLoss
 section_loss_params:
   reduction: mean
 
-section_loss_lambda: 1.0
-machine_loss_lambda: 0
+section_loss_lambda: 10.0
+
 # mixup related
 mixup_alpha: 0.2
 ###########################################################
@@ -40,6 +37,7 @@ mixup_alpha: 0.2
 
 accum_grads: 1
 
+in_sample_norm: true
 n_pos: 64 # Batch size.
 n_neg: 64
 pin_memory: true # Whether to pin memory in Pytorch DataLoader.

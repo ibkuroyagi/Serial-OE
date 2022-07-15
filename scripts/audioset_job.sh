@@ -2,10 +2,10 @@
 
 stage=1
 start_stage=3
-no=audioset_v001
+no=audioset_v009
 feature=_embed
 use_10sec=false
-audioset_pow=21
+audioset_pow=0
 valid_ratio=0.15
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
@@ -14,7 +14,7 @@ epochs="20 40 60 80 100"
 
 set -euo pipefail
 machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
-machines=("fan")
+# machines=("fan")
 # machines=("pump" "slider" "ToyCar" "ToyConveyor" "valve")
 resume=""
 tag=${no}
@@ -23,7 +23,7 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
         echo "Start model training ${machine}/${no}. resume:${resume}"
         sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}" ./audioset_run.sh \
             --stage "${start_stage}" \
-            --stop_stage "2" \
+            --stop_stage "5" \
             --conf "conf/tuning/asd_model.${no}.yaml" \
             --pos_machine "${machine}" \
             --resume "${resume}" \
