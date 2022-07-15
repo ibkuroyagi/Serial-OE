@@ -4,9 +4,7 @@
 model_type: ASDModel
 model_params:
   backbone: mobilenetv2_100
-  neck: option-F
   embedding_size: 128
-  gem_pooling: false
   pretrained: true
   use_pos: false
   in_chans: 3

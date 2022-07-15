@@ -4,9 +4,7 @@
 model_type: ASDModel
 model_params:
   backbone: tf_efficientnet_b0_ns
-  neck: option-F
   embedding_size: 128
-  gem_pooling: false
   pretrained: true
   use_pos: false
   in_chans: 3
