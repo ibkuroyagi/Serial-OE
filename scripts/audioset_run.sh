@@ -9,7 +9,7 @@ stage=1      # stage to start
 stop_stage=1 # stage to stop
 verbose=1    # verbosity level (lower is less info)
 n_gpus=1     # number of gpus in training
-n_jobs=256
+n_jobs=128
 conf=conf/tuning/asd_model.audioset_v000.yaml
 resume=""
 pos_machine=fan
@@ -21,11 +21,11 @@ expdir=exp
 tag=audioset_v000 # tag for directory to save model
 valid_ratio=0.1
 # outlier setting
-use_audioset=false
+use_audioset=true
 audioset_dir=/path/to/AudioSet/audios
 audioset_pow=21
-use_uav=true
-use_idmt=true
+use_uav=false
+use_idmt=false
 # inference related setting
 epochs="20 40 60 80 100"
 checkpoints=""
@@ -88,29 +88,32 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
     done
     if "${use_audioset}"; then
         log "Creat Audioset scp."
-        # shellcheck disable=SC1091
+        # # shellcheck disable=SC1091
         local/get_audioset_scp.sh "${audioset_dir}" "${dumpdir}/audioset"
-        split_scps=""
-        for i in $(seq 1 "${n_jobs}"); do
-            split_scps+=" ${dumpdir}/audioset/unbalanced_train_segments/log/wav.${i}.scp"
+        for segments in balanced_train_segments unbalanced_train_segments; do
+            split_scps=""
+            for i in $(seq 1 "${n_jobs}"); do
+                split_scps+=" ${dumpdir}/audioset/${segments}/log/wav.${i}.scp"
+            done
+            # shellcheck disable=SC2086
+            utils/split_scp.pl "${dumpdir}/audioset/${segments}/wav.scp" ${split_scps}
+            log "Creat dump file start. ${dumpdir}/audioset/${segments}/log/preprocess.*.log"
+            pids=()
+            (
+                # shellcheck disable=SC2086,SC2154
+                ${train_cmd} --max-jobs-run 64 JOB=1:"${n_jobs}" "${dumpdir}/audioset/${segments}/log/preprocess.JOB.log" \
+                    python local/dump_outlier.py \
+                    --download_dir "${dumpdir}/audioset/${segments}/log/wav.JOB.scp" \
+                    --dumpdir "${dumpdir}/audioset/${segments}/part.JOB" \
+                    --dataset "audioset" \
+                    --verbose "${verbose}"
+            ) &
+            pids+=($!)
+            i=0
+            for pid in "${pids[@]}"; do wait "${pid}" || ((++i)); done
+            [ "${i}" -gt 0 ] && echo "$0: ${i} background jobs are failed." && exit 1
+            log "Successfully created Audioset ${segments} dump."
         done
-        # shellcheck disable=SC2086
-        utils/split_scp.pl "${dumpdir}/audioset/unbalanced_train_segments/wav.scp" ${split_scps}
-        log "Creat dump file start. ${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.*.log"
-        pids=()
-        (
-            # shellcheck disable=SC2086,SC2154
-            ${train_cmd} --max-jobs-run 64 JOB=1:"${n_jobs}" "${dumpdir}/audioset/unbalanced_train_segments/log/preprocess.JOB.log" \
-                python -m asd_tools.bin.normalize_wave \
-                --download_dir "${dumpdir}/audioset/unbalanced_train_segments/log/wav.JOB.scp" \
-                --dumpdir "${dumpdir}/audioset/unbalanced_train_segments/part.JOB" \
-                --verbose "${verbose}"
-        ) &
-        pids+=($!)
-        i=0
-        for pid in "${pids[@]}"; do wait "${pid}" || ((++i)); done
-        [ "${i}" -gt 0 ] && echo "$0: ${i} background jobs are failed." && exit 1
-        log "Successfully finished creat Audioset dump."
     fi
     if "${use_uav}"; then
         log "Creat dump of UAV-Propeller-Anomaly-Audio-Dataset."
@@ -175,7 +178,15 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
             --dumpdir "${dumpdir}/audioset/unbalanced_train_segments" \
             --dataset "audioset" \
             --max_audioset_size_2_pow 22
-        log "Successfully write ${dumpdir}/audioset/audioset_2__${audioset_pow}.scp."
+        log "Successfully write ${dumpdir}/audioset/audioset_2__*.scp."
+        log "See the progress via ${dumpdir}/audioset/balanced_train_segments/log/write_scp.log."
+        # shellcheck disable=SC2086
+        ${train_cmd} "${dumpdir}/audioset/balanced_train_segments/log/write_scp.log" \
+            python local/write_scp.py \
+            --dumpdir "${dumpdir}/audioset/balanced_train_segments" \
+            --dataset "audioset" \
+            --max_audioset_size_2_pow 0
+        log "Successfully write ${dumpdir}/audioset/balanced_train_segments/audioset.scp."
     fi
     if "${use_uav}"; then
         log "Creat scp of UAV-Propeller-Anomaly-Audio-Dataset."
@@ -199,7 +210,22 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     fi
 fi
 
-tag+="${end_str}_p${audioset_pow}"
+tag+="${end_str}"
+outlier_scps=""
+valid_outlier_scps=""
+if "${use_audioset}"; then
+    tag+="_p${audioset_pow}"
+    outlier_scps+="${dumpdir}/audioset/unbalanced_train_segments/audioset_2__${audioset_pow}.scp "
+    valid_outlier_scps+="${dumpdir}/audioset/balanced_train_segments/audioset.scp"
+fi
+if "${use_uav}"; then
+    tag+="_uav"
+    outlier_scps+="${dumpdir}/uav/uav.scp "
+fi
+if "${use_idmt}"; then
+    tag+="_idmt"
+    outlier_scps+="${dumpdir}/idmt/idmt.scp "
+fi
 outdir="${expdir}/${pos_machine}/${tag}"
 if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
     log "Stage 3: Train embedding. resume: ${resume}"
@@ -219,7 +245,8 @@ if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
         --train_neg_machine_scps ${train_neg_machine_scps} \
         --valid_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/valid${end_str}.scp" \
         --valid_neg_machine_scps ${valid_neg_machine_scps} \
-        --outlier_scp "${dumpdir}/audioset/unbalanced_train_segments/audioset_2__${audioset_pow}.scp" \
+        --outlier_scp ${outlier_scps} \
+        --valid_outlier_scp ${valid_outlier_scps} \
         --statistic_path "${dumpdir}/dev/${pos_machine}/train/statistic.json" \
         --outdir "${outdir}" \
         --config "${conf}" \
@@ -259,7 +286,7 @@ fi
 if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     log "Stage 5: Inference start. See the progress via ${outdir}/infer_${pos_machine}${feature}${tail_name}_${tag}.log."
     # shellcheck disable=SC2154,SC2086
-    ${cuda_cmd} "${outdir}/infer_${pos_machine}_${feature}${tail_name}_${tag}.log" \
+    ${cuda_cmd} "${outdir}/infer_${pos_machine}${feature}${tail_name}_${tag}.log" \
         python -m asd_tools.bin.infer \
         --pos_machine "${pos_machine}" \
         --checkpoints ${checkpoints} \

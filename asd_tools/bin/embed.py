@@ -125,7 +125,7 @@ def main():
     valid_dataset = OutlierWaveASDDataset(
         pos_machine_scp=args.valid_pos_machine_scp,
         neg_machine_scps=[],
-        outlier_scp="",
+        outlier_scps=[],
         allow_cache=True,
         statistic_path=args.statistic_path,
         in_sample_norm=config.get("in_sample_norm", False),
@@ -152,7 +152,7 @@ def main():
         eval_dataset = OutlierWaveASDDataset(
             pos_machine_scp=args.eval_pos_machine_scp,
             neg_machine_scps=[],
-            outlier_scp="",
+            outlier_scps=[],
             allow_cache=True,
             statistic_path=args.statistic_path,
             in_sample_norm=config.get("in_sample_norm", False),

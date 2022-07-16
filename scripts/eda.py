@@ -12,6 +12,7 @@ import torchaudio
 import h5py
 import librosa
 import soundfile as sf
+from statistics import mean
 
 # %%
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
@@ -76,52 +77,42 @@ df4.sort_values(by="eval_hauc", ascending=False, inplace=True)
 df4.reset_index(drop=True, inplace=True)
 df4.head(10)
 # %%
+machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 df_list = []
-score_list = [
-    # "exp/all/audioset_v000_0.15_p0/checkpoint-100epochs/score_embed.csv",
-    "exp/all/audioset_v001_0.15_p0/checkpoint-100epochs/score_embed.csv",
-]
-for score_path in score_list:
-    df = pd.read_csv(score_path)
-    df_list.append(df)
-df = pd.concat(df_list)
-df.sort_values(by="eval_hauc", ascending=False, inplace=True)
-df.reset_index(drop=True, inplace=True)
-df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
-df["valid"] = df["path"].map(lambda x: float(x.split("_")[2]))
-df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
-df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
-df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
-# %%
-machine = machines[5]
-columns = [
-    "post_process",
-    "path",
-    f"eval_{machine}_hauc",
-    f"dev_{machine}_hauc",
-    f"dev_{machine}_mauc",
-]
-sorted_df = df[(df["h"] == "GMM") & (df["agg"] == "median")].sort_values(
-    by=f"eval_{machine}_hauc", ascending=False
-)[columns]
-sorted_df.head(10)
+for rate in [0.1, 0.15]:
+    score_list = [
+        f"exp/all/audioset_v000_{rate}_p0/checkpoint-100epochs/score_embed.csv",
+        # "exp/all/audioset_v001_0.15_p0/checkpoint-100epochs/score_embed.csv",
+    ]
+    for score_path in score_list:
+        df = pd.read_csv(score_path)
+        df_list.append(df)
+    df = pd.concat(df_list)
+    df.sort_values(by="eval_hauc", ascending=False, inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
+    df["valid"] = df["path"].map(lambda x: float(x.split("_")[2]))
+    df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
+    df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
+    df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
+    df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
 
-# %%
-# fan同じ, pump勝ち、slider同じ、
-auc_list = []  # AUC,pAUC,mAUC
-auc_cols = []
-mauc_cols = []
-for machine in machines:
-    sorted_df = df[(df["h"] == "GMM") & (df["agg"] == "median")].sort_values(
-        by=f"eval_{machine}_hauc", ascending=False
-    )
-    sorted_df.reset_index(drop=True, inplace=True)
-    # dev_cols = [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
-    dev_cols = [f"dev_{machine}_mauc"]
-    auc_cols += [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
-    mauc_cols.append(f"dev_{machine}_mauc")
-    auc_list += list(sorted_df.loc[0, dev_cols].values * 100)
-print(auc_list)
+    auc_list = []  # AUC,pAUC,mAUC
+    auc_cols = []
+    mauc_cols = []
+    for machine in machines:
+        sorted_df = df[
+            (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 8)
+        ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
+        sorted_df.reset_index(drop=True, inplace=True)
+        dev_cols = [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
+        # dev_cols = [f"dev_{machine}_mauc"]
+        auc_cols += [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
+        mauc_cols.append(f"dev_{machine}_mauc")
+        auc_list += list(sorted_df.loc[0, dev_cols].values * 100)
+        print(sorted_df.loc[0, "post_process"])
+    print(auc_list)
+    print(mean(auc_list))
 # %%
 
 
@@ -191,6 +182,3 @@ plt.colorbar()
 plt.figure()
 plt.imshow(w1[0] - w2[0], aspect="auto")
 plt.colorbar()
-
-# %%
-batch = torch.cat([w0.unsqueeze(1), w1.unsqueeze(1), w2.unsqueeze(1)], dim=1)

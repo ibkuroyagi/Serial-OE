@@ -68,9 +68,15 @@ def write_audioset(args):
 
 def write_outlier(args):
     """Run write outlier scp."""
-    h5_list = [
-        path for path in sorted(glob.glob(os.path.join(args.dumpdir[0], "*.h5")))
-    ]
+    if args.dataset == "audioset":
+        h5_list = [
+            path
+            for path in sorted(glob.glob(os.path.join(args.dumpdir[0], "**", "*.h5")))
+        ]
+    else:
+        h5_list = [
+            path for path in sorted(glob.glob(os.path.join(args.dumpdir[0], "*.h5")))
+        ]
     print(f"{args.dataset} has {len(h5_list)} files.")
     scp_path = os.path.join(args.dumpdir[0], f"{args.dataset}.scp")
     with codecs.open(
@@ -137,5 +143,9 @@ if __name__ == "__main__":
         write_dev(args)
     elif (args.max_audioset_size_2_pow > 0) and (args.dataset == "audioset"):
         write_audioset(args)
-    elif (args.dataset == "uav") or (args.dataset == "idmt"):
+    elif (
+        (args.dataset == "uav")
+        or (args.dataset == "idmt")
+        or ((args.dataset == "audioset") and (args.max_audioset_size_2_pow == 0))
+    ):
         write_outlier(args)

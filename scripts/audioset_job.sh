@@ -2,11 +2,16 @@
 
 stage=1
 start_stage=3
-no=audioset_v009
+no=audioset_v000
 feature=_embed
 use_10sec=false
 audioset_pow=0
 valid_ratio=0.15
+
+use_audioset=false
+use_uav=false
+use_idmt=false
+
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 
@@ -32,7 +37,10 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
             --use_10sec "${use_10sec}" \
             --epochs "${epochs}" \
             --valid_ratio "${valid_ratio}" \
-            --audioset_pow "${audioset_pow}"
+            --audioset_pow "${audioset_pow}" \
+            --use_audioset "${use_audioset}" \
+            --use_uav "${use_uav}" \
+            --use_idmt "${use_idmt}"
     done
 fi
 

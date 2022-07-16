@@ -72,10 +72,18 @@ def main():
         "--config", type=str, required=True, help="yaml format configuration file."
     )
     parser.add_argument(
-        "--outlier_scp",
-        default="",
+        "--outlier_scps",
+        default=[],
         type=str,
-        help="Scp file of outlier dataset.",
+        nargs="*",
+        help="list of scp file of outlier dataset.",
+    )
+    parser.add_argument(
+        "--valid_outlier_scps",
+        default=[],
+        type=str,
+        nargs="*",
+        help="list of scp file of validation outlier dataset.",
     )
     parser.add_argument(
         "--statistic_path",
@@ -156,7 +164,7 @@ def main():
     train_dataset = OutlierWaveASDDataset(
         pos_machine_scp=args.train_pos_machine_scp,
         neg_machine_scps=args.train_neg_machine_scps,
-        outlier_scp=args.outlier_scp,
+        outlier_scps=args.outlier_scps,
         allow_cache=config.get("allow_cache", False),
         augmentation_params=config.get("augmentation_params", {}),
         statistic_path=args.statistic_path,
@@ -166,7 +174,7 @@ def main():
     valid_dataset = OutlierWaveASDDataset(
         pos_machine_scp=args.valid_pos_machine_scp,
         neg_machine_scps=args.valid_neg_machine_scps,
-        outlier_scp="",
+        outlier_scps=args.valid_outlier_scps,
         allow_cache=True,
         statistic_path=args.statistic_path,
         in_sample_norm=config.get("in_sample_norm", False),

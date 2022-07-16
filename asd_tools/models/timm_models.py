@@ -68,7 +68,7 @@ class ASDModel(nn.Module):
         )
         if use_pos:
             self.amplitude2db = T.AmplitudeToDB(stype=power)
-            self.melspectrogram2 = T.MelSpectrogram(
+            self.melspectrogram1 = T.MelSpectrogram(
                 sample_rate=16000,
                 n_fft=n_fft // 2,
                 hop_length=hop_length,
@@ -115,7 +115,7 @@ class ASDModel(nn.Module):
         if self.use_pos:
             x1 = self.amplitude2db(x)
             x2 = self.amplitude2db(self.melspectrogram1(input))
-            x = torch.cat([x, x1.unsqueeze(1), x2.unsqueeze(1)], dim=1)
+            x = torch.cat([x, x1, x2.unsqueeze(1)], dim=1)
         else:
             x = x.expand(-1, 3, -1, -1)
         # logging.info(f"before x:{x.shape}")

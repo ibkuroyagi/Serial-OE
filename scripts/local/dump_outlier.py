@@ -70,8 +70,14 @@ def main():
     elif args.dataset == "idmt":
         wave_fname_list = glob.glob(f"{args.download_dir}/test_cut/**/*.wav")
         wave_fname_list += glob.glob(f"{args.download_dir}/train_cut/**/*.wav")
+    elif args.dataset == "audioset":
+        with open(args.download_dir, "r") as f:
+            wave_fname_list = [s.strip() for s in f.readlines()]
     for fname in tqdm(sorted(wave_fname_list)):
-        wav_id = "-".join(fname.split("/")[2:]).split(".")[0]
+        if args.dataset == "audioset":
+            wav_id = fname.split("/")[-1].split(".")[0]
+        else:
+            wav_id = "-".join(fname.split("/")[2:]).split(".")[0]
         logging.info(f"load:{fname}")
         x, orig_sr = sf.read(fname)
         x = librosa.resample(x, orig_sr=orig_sr, target_sr=sr)
