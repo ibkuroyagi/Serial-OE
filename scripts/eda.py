@@ -13,7 +13,23 @@ import h5py
 import librosa
 import soundfile as sf
 from statistics import mean
+from IPython.core.display import display
 
+# %%
+machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
+# machine = machines[0]
+for machine in machines:
+    with open(f"dump/dev/{machine}/test/eval.scp", "r") as f:
+        eval_list = [s.strip() for s in f.readlines()]
+    df = pd.DataFrame(eval_list, columns=["path"])
+    df["section"] = df["path"].map(lambda x: int(x.split("_")[2]))
+    df["is_anomaly"] = df["path"].map(lambda x: int("anomaly" in x.split("_")[0]))
+    df["is_normal"] = ~df["is_anomaly"] + 2
+    df["is_dev"] = df["path"].map(lambda x: int("dev" in x.split("_")[0]))
+    print(machine)
+    display(
+        df[["section", "is_dev", "is_anomaly", "is_normal"]].groupby(by="section").sum()
+    )
 # %%
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 for machine in machines:
@@ -81,7 +97,7 @@ machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 df_list = []
 for rate in [0.1, 0.15]:
     score_list = [
-        f"exp/all/audioset_v000_{rate}_p0/checkpoint-100epochs/score_embed.csv",
+        f"exp/all/audioset_v000_{rate}/checkpoint-100epochs/score_embed.csv",
         # "exp/all/audioset_v001_0.15_p0/checkpoint-100epochs/score_embed.csv",
     ]
     for score_path in score_list:
@@ -91,8 +107,8 @@ for rate in [0.1, 0.15]:
     df.sort_values(by="eval_hauc", ascending=False, inplace=True)
     df.reset_index(drop=True, inplace=True)
     df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
-    df["valid"] = df["path"].map(lambda x: float(x.split("_")[2]))
-    df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
+    df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
+    # df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
     df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
     df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
     df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
@@ -102,11 +118,11 @@ for rate in [0.1, 0.15]:
     mauc_cols = []
     for machine in machines:
         sorted_df = df[
-            (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 8)
+            (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 1)
         ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
         sorted_df.reset_index(drop=True, inplace=True)
         dev_cols = [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
-        # dev_cols = [f"dev_{machine}_mauc"]
+        dev_cols = [f"dev_{machine}_mauc"]
         auc_cols += [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
         mauc_cols.append(f"dev_{machine}_mauc")
         auc_list += list(sorted_df.loc[0, dev_cols].values * 100)

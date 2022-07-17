@@ -21,7 +21,6 @@ expdir=exp
 tag=audioset_v000 # tag for directory to save model
 valid_ratio=0.1
 # outlier setting
-use_audioset=true
 audioset_dir=/path/to/AudioSet/audios
 audioset_pow=21
 use_uav=false
@@ -44,6 +43,11 @@ log "1. resume:${resume}"
 . utils/parse_options.sh || exit 1
 
 set -euo pipefail
+if [ ${audioset_pow} -gt 0 ]; then
+    use_audioset=true
+else
+    use_audioset=false
+fi
 
 log "Start run.sh"
 machines=("fan" "pump" "slider" "valve" "ToyCar" "ToyConveyor")

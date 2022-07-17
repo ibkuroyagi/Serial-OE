@@ -7,8 +7,6 @@ feature=_embed
 use_10sec=false
 audioset_pow=0
 valid_ratio=0.15
-
-use_audioset=false
 use_uav=false
 use_idmt=false
 
@@ -26,7 +24,7 @@ tag=${no}
 if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
     for machine in "${machines[@]}"; do
         echo "Start model training ${machine}/${no}. resume:${resume}"
-        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}" ./audioset_run.sh \
+        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}" ./run.sh \
             --stage "${start_stage}" \
             --stop_stage "5" \
             --conf "conf/tuning/asd_model.${no}.yaml" \
@@ -38,7 +36,6 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
             --epochs "${epochs}" \
             --valid_ratio "${valid_ratio}" \
             --audioset_pow "${audioset_pow}" \
-            --use_audioset "${use_audioset}" \
             --use_uav "${use_uav}" \
             --use_idmt "${use_idmt}"
     done
@@ -48,8 +45,18 @@ if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then
     if [ "${use_10sec}" = "true" ]; then
         feature="_10sec${feature}"
     fi
+    tag=${no}_${valid_ratio}
+    if [ ${audioset_pow} -gt 0 ]; then
+        use_audioset+=_p${audioset_pow}
+    fi
+    if "${use_uav}"; then
+        tag+="_uav"
+    fi
+    if "${use_idmt}"; then
+        tag+="_idmt"
+    fi
     ./local/scoring.sh \
-        --no "${no}_${valid_ratio}_p${audioset_pow}" \
+        --no "${tag}" \
         --feature "${feature}" \
         --epochs "${epochs}"
 fi
