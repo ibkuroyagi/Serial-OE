@@ -30,6 +30,10 @@ $ ./job.sh --no <the_number_of_your_customized_yaml_config>
 # You can select the stage to start and stop
 $ ./job.sh --stage 1 --start_stage 3
 
+# You can see the progress of the experiments.
+$ . ./path.sh
+$ python -m tensorboard.main --logdir exp
+
 # After all machine types have completed Stage 5, starting Stage 2.
 # You can see the results at exp/all/**/score*.csv
 $ ./job.sh --stage 2

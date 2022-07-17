@@ -7,7 +7,7 @@ virtualenv:
 	git clone https://github.com/rwightman/pytorch-image-models.git
 	. ./activate_python.sh; cd pytorch-image-models; pip install .
 	. ./activate_python.sh; cd ../; pip install -e .
-	. ./activate_python.sh; conda install ipython ipykernel numpy pandas scikit-learn matplotlib librosa optuna h5py pyyaml tensorboardx black flake8 -c conda-forge
+	. ./activate_python.sh; conda install ipython ipykernel numpy pandas scikit-learn matplotlib librosa optuna h5py pyyaml tensorboardx tensorboard black flake8 -c conda-forge
 	. ./activate_python.sh; conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
 clean:
 	rm -fr venv miniconda.sh activate_python.sh pytorch-image-models

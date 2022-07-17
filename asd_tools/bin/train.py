@@ -21,7 +21,7 @@ import asd_tools.losses
 import asd_tools.optimizers
 import asd_tools.schedulers
 from asd_tools.datasets import WaveCollator
-from asd_tools.trainer import MetricOECTrainer
+from asd_tools.trainer import OECTrainer
 from asd_tools.utils import count_params
 from asd_tools.utils import seed_everything
 from asd_tools.datasets import OutlierBalancedBatchSampler
@@ -44,6 +44,12 @@ def main():
         default=None,
         type=str,
         help="root directory of positive train dataset.",
+    )
+    parser.add_argument(
+        "--train_pos_anomaly_machine_scp",
+        default="",
+        type=str,
+        help="root directory of positive train anomaly dataset.",
     )
     parser.add_argument(
         "--train_neg_machine_scps",
@@ -156,13 +162,16 @@ def main():
     seed_everything(seed=config["seed"])
     with open(os.path.join(args.outdir, "config.yml"), "w") as f:
         yaml.dump(config, f, Dumper=yaml.Dumper)
-    config["batch_size"] = config["n_pos"] + config["n_neg"]
+    config["batch_size"] = (
+        config["n_pos"] + config["n_neg"] + config.get("n_anomaly", 0)
+    )
     for key, value in config.items():
         logging.info(f"{key} = {value}")
     # get dataset
 
     train_dataset = OutlierWaveASDDataset(
         pos_machine_scp=args.train_pos_machine_scp,
+        pos_anomaly_machine_scp=args.train_pos_anomaly_machine_scp,
         neg_machine_scps=args.train_neg_machine_scps,
         outlier_scps=args.outlier_scps,
         allow_cache=config.get("allow_cache", False),
@@ -173,6 +182,7 @@ def main():
     logging.info(f"train outlier = {len(train_dataset.outlier_files)}.")
     valid_dataset = OutlierWaveASDDataset(
         pos_machine_scp=args.valid_pos_machine_scp,
+        pos_anomaly_machine_scp="",
         neg_machine_scps=args.valid_neg_machine_scps,
         outlier_scps=args.valid_outlier_scps,
         allow_cache=True,
@@ -186,6 +196,8 @@ def main():
         n_neg=config["n_neg"],
         shuffle=True,
         drop_last=True,
+        anomaly_as_neg=config.get("anomaly_as_neg", True),
+        n_anomaly=config.get("n_anomaly_in_mini_batch", 0),
     )
     valid_balanced_batch_sampler = OutlierBalancedBatchSampler(
         valid_dataset,
@@ -193,12 +205,16 @@ def main():
         n_neg=config["n_pos"],
         shuffle=False,
         drop_last=False,
+        anomaly_as_neg=config.get("anomaly_as_neg", True),
+        n_anomaly=config.get("n_anomaly_in_mini_batch", 0),
     )
     logging.info(f"The number of training files = {len(train_dataset)}.")
-    logging.info(f"train pos_source = {len(train_dataset.pos_files)}.")
+    logging.info(f"train pos = {len(train_dataset.pos_files)}.")
+    logging.info(f"train pos anomaly = {len(train_dataset.pos_anomaly_files)}.")
     logging.info(f"train neg = {len(train_dataset.neg_files)}.")
     logging.info(f"The number of validation files = {len(valid_dataset)}.")
-    logging.info(f"valid pos_source = {len(valid_dataset.pos_files)}.")
+    logging.info(f"valid pos = {len(valid_dataset.pos_files)}.")
+    logging.info(f"valid pos anomaly = {len(valid_dataset.pos_anomaly_files)}.")
     logging.info(f"valid neg = {len(valid_dataset.neg_files)}.")
     train_collator = WaveCollator(
         sf=config["sf"],
@@ -206,6 +222,7 @@ def main():
         pos_machine=args.pos_machine,
         shuffle=True,
         use_is_normal=False,
+        anomaly_as_neg=config.get("anomaly_as_neg", True),
     )
     valid_collator = WaveCollator(
         sf=config["sf"],
@@ -213,6 +230,7 @@ def main():
         pos_machine=args.pos_machine,
         shuffle=False,
         use_is_normal=False,
+        anomaly_as_neg=config.get("anomaly_as_neg", True),
     )
     data_loader = {
         "train": DataLoader(
@@ -269,17 +287,17 @@ def main():
         )
         if config["scheduler_type"] == "OneCycleLR":
             config["scheduler_params"]["epochs"] = config["train_max_epochs"]
-            if config.get("n_pos", None) is not None:
-                n_pos = config["n_pos"]
+            if config.get("anomaly_as_neg", True):
+                steps_per_epoch = len(train_dataset.pos_files) // config["n_pos"] + 1
             else:
-                n_pos = config["batch_size"] // 2
-            config["scheduler_params"]["steps_per_epoch"] = (
-                len(train_dataset.pos_files) // n_pos + 1
-            )
+                steps_per_epoch = (
+                    len(train_dataset.pos_files) + len(train_dataset.pos_anomaly_files)
+                ) // config["n_pos"] + 1
+            config["scheduler_params"]["steps_per_epoch"] = steps_per_epoch
         scheduler = scheduler_class(optimizer=optimizer, **config["scheduler_params"])
 
     # define trainer
-    trainer = MetricOECTrainer(
+    trainer = OECTrainer(
         steps=1,
         epochs=1,
         data_loader=data_loader,

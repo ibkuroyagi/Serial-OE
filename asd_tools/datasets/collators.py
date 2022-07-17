@@ -12,6 +12,7 @@ class WaveCollator(object):
         pos_machine="fan",
         shuffle=True,
         use_is_normal=False,
+        anomaly_as_neg=True,
     ):
         """Initialize customized collator for PyTorch DataLoader."""
         self.sf = sf
@@ -20,6 +21,7 @@ class WaveCollator(object):
         self.pos_machine = pos_machine
         self.shuffle = shuffle
         self.use_is_normal = use_is_normal
+        self.anomaly_as_neg = anomaly_as_neg
         self.rng = np.random.default_rng()
 
     def __call__(self, batch):
@@ -39,7 +41,13 @@ class WaveCollator(object):
                     dtype=torch.float,
                 )
             )
-            machine_batch.append(int(b["machine"] == self.pos_machine))
+            if self.anomaly_as_neg:
+                machine = int(
+                    (b["machine"] == self.pos_machine) and (b["is_normal"] == 1)
+                )
+            else:
+                machine = int(b["machine"] == self.pos_machine)
+            machine_batch.append(machine)
             section_batch.append(b["section"])
             if self.use_is_normal:
                 is_normal_batch.append(b["is_normal"])

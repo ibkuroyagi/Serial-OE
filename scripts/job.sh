@@ -9,11 +9,14 @@ audioset_pow=0
 valid_ratio=0.15
 use_uav=false
 use_idmt=false
-
+# anomaly related
+max_anomaly_pow=6
+n_anomaly=-1
+seed=0
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 
-epochs="20 40 60 80 100"
+epochs="100"
 
 set -euo pipefail
 machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
@@ -37,7 +40,10 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
             --valid_ratio "${valid_ratio}" \
             --audioset_pow "${audioset_pow}" \
             --use_uav "${use_uav}" \
-            --use_idmt "${use_idmt}"
+            --use_idmt "${use_idmt}" \
+            --n_anomaly "${n_anomaly}" \
+            --max_anomaly_pow "${max_anomaly_pow}" \
+            --seed "${seed}"
     done
 fi
 
@@ -47,13 +53,16 @@ if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then
     fi
     tag=${no}_${valid_ratio}
     if [ ${audioset_pow} -gt 0 ]; then
-        use_audioset+=_p${audioset_pow}
+        tag+=_p${audioset_pow}
     fi
     if "${use_uav}"; then
         tag+="_uav"
     fi
     if "${use_idmt}"; then
         tag+="_idmt"
+    fi
+    if [ ${n_anomaly} -ge 0 ]; then
+        tag+="_anomaly${n_anomaly}_max${max_anomaly_pow}_seed${seed}"
     fi
     ./local/scoring.sh \
         --no "${tag}" \

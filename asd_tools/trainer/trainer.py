@@ -8,14 +8,18 @@ import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import f1_score
+
 from tensorboardX import SummaryWriter
+
+# from torch.utils.tensorboard import SummaryWriter
+
 
 from asd_tools.utils import mixup_for_outlier
 from asd_tools.utils import schedule_cos_phases
 
 
-class MetricOECTrainer(object):
-    """Customized trainer module for OEC training."""
+class OECTrainer(object):
+    """Customized trainer module for Outlier Exposure Classification."""
 
     def __init__(
         self,

@@ -13,6 +13,7 @@ n_jobs=128
 conf=conf/tuning/asd_model.audioset_v000.yaml
 resume=""
 pos_machine=fan
+seed=0 # Seed of scp file.
 # directory path setting
 download_dir=downloads
 dumpdir=dump # directory to dump features
@@ -20,6 +21,8 @@ expdir=exp
 # training related setting
 tag=audioset_v000 # tag for directory to save model
 valid_ratio=0.1
+max_anomaly_pow=6
+n_anomaly=-1 # -1: eval.scp, 0>=: eval_max*_seed*.scp,
 # outlier setting
 audioset_dir=/path/to/AudioSet/audios
 audioset_pow=21
@@ -74,10 +77,9 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
     log "Stage 1: Dump wave data."
     for machine in "${machines[@]}"; do
         train_set="dev/${machine}/train"
-        valid_set="dev/${machine}/test"
-        eval_set="eval/${machine}/test"
+        eval_set="dev/${machine}/test"
         statistic_path="${dumpdir}/dev/${machine}/train/statistic.json"
-        for name in ${train_set} ${valid_set} ${eval_set}; do
+        for name in ${train_set} ${eval_set}; do
             [ ! -e "${dumpdir}/${name}" ] && mkdir -p "${dumpdir}/${name}"
             log "See the progress via ${dumpdir}/${name}/normalize_wave.log."
             # shellcheck disable=SC2154
@@ -152,8 +154,6 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     log "Split training data."
     for machine in "${machines[@]}"; do
         train_set="dev/${machine}/train"
-        valid_set="dev/${machine}/test"
-        eval_set="eval/${machine}/test"
         # shellcheck disable=SC2154,SC2086
         ${train_cmd} "${dumpdir}/${train_set}/write_scp${end_str}.log" \
             python local/write_scp.py \
@@ -161,17 +161,16 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
             --dataset "dcase" \
             --valid_ratio "${valid_ratio}"
         log "Successfully splited ${dumpdir}/${train_set} train and valid data."
-        log "All target data is in train${end_str}.scp"
-        for name in ${valid_set} ${eval_set}; do
-            # shellcheck disable=SC2154
-            ${train_cmd} "${dumpdir}/${name}/write_scp.log" \
-                python local/write_scp.py \
-                --dumpdir "${dumpdir}/${name}" \
-                --dataset "dcase" \
-                --valid_ratio 0
-            log "Successfully write ${dumpdir}/${name}/eval.scp."
-        done
-        cat "${dumpdir}/eval/${machine}/test/eval.scp" >>"${dumpdir}/dev/${machine}/test/eval.scp"
+        log "Scp files are in train${end_str}.scp and train${end_str}.scp."
+        eval_set="dev/${machine}/test"
+        # shellcheck disable=SC2154
+        ${train_cmd} "${dumpdir}/${eval_set}/write_scp.log" \
+            python local/write_scp.py \
+            --dumpdir "${dumpdir}/${eval_set}" \
+            --dataset "dcase" \
+            --max_anomaly_pow "${max_anomaly_pow}" \
+            --valid_ratio 0
+        log "Successfully write ${dumpdir}/${eval_set}/eval.scp."
     done
     if "${use_audioset}"; then
         log "Creat scp of Audioset."
@@ -230,6 +229,13 @@ if "${use_idmt}"; then
     tag+="_idmt"
     outlier_scps+="${dumpdir}/idmt/idmt.scp "
 fi
+anomaly_end_str=""
+train_anomaly_scp=""
+if [ ${n_anomaly} -ge 0 ]; then
+    anomaly_end_str+="_max${max_anomaly_pow}_seed${seed}"
+    train_anomaly_scp+="${dumpdir}/dev/${pos_machine}/test/train_anomaly${n_anomaly}${anomaly_end_str}.scp"
+    tag+="_anomaly${n_anomaly}${anomaly_end_str}"
+fi
 outdir="${expdir}/${pos_machine}/${tag}"
 if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
     log "Stage 3: Train embedding. resume: ${resume}"
@@ -246,6 +252,7 @@ if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
         python -m asd_tools.bin.train \
         --pos_machine "${pos_machine}" \
         --train_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/train${end_str}.scp" \
+        --train_pos_anomaly_machine_scp "${train_anomaly_scp}" \
         --train_neg_machine_scps ${train_neg_machine_scps} \
         --valid_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/valid${end_str}.scp" \
         --valid_neg_machine_scps ${valid_neg_machine_scps} \
@@ -277,7 +284,7 @@ if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
     ${cuda_cmd} --gpu "${n_gpus}" "${outdir}/embed_${pos_machine}_${tag}${tail_name}.log" \
         python -m asd_tools.bin.embed \
         --valid_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/valid${end_str}.scp" \
-        --eval_pos_machine_scp "${dumpdir}/dev/${pos_machine}/test/eval.scp" \
+        --eval_pos_machine_scp "${dumpdir}/dev/${pos_machine}/test/eval${anomaly_end_str}.scp" \
         --statistic_path "${dumpdir}/dev/${pos_machine}/train/statistic.json" \
         --checkpoints ${checkpoints} \
         --config "${conf}" \

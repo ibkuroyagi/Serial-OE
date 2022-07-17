@@ -13,6 +13,7 @@ class OutlierWaveASDDataset(Dataset):
     def __init__(
         self,
         pos_machine_scp="",
+        pos_anomaly_machine_scp="",
         outlier_scps=[],
         neg_machine_scps=[],
         allow_cache=False,
@@ -21,22 +22,32 @@ class OutlierWaveASDDataset(Dataset):
         in_sample_norm=False,
     ):
         """Initialize dataset."""
-        self.pos_files, self.neg_files = [], []
         with open(pos_machine_scp, "r") as f:
             self.pos_files = [s.strip() for s in f.readlines()]
+        self.pos_anomaly_files, self.neg_files, self.outlier_files = [], [], []
+        if len(pos_anomaly_machine_scp) != 0:
+            with open(pos_anomaly_machine_scp, "r") as f:
+                self.pos_anomaly_files = [s.strip() for s in f.readlines()]
         for neg_machine_scp in neg_machine_scps:
             with open(neg_machine_scp, "r") as f:
                 neg_files = [s.strip() for s in f.readlines()]
             self.neg_files += neg_files
-        if len(outlier_scps) == 0:
-            self.outlier_files = []
-        else:
+        self.neg_files.sort()
+        if len(outlier_scps) != 0:
             for outlier_scp in outlier_scps:
                 with open(outlier_scp, "r") as f:
-                    self.outlier_files = [s.strip() for s in f.readlines()]
-        self.neg_files.sort()
-        self.wav_files = self.pos_files + self.neg_files + self.outlier_files
-        self.outlier_size = len(self.pos_files) + len(self.neg_files)
+                    self.outlier_files += [s.strip() for s in f.readlines()]
+            self.outlier_files.sort()
+
+        self.wav_files = (
+            self.pos_files
+            + self.pos_anomaly_files
+            + self.neg_files
+            + self.outlier_files
+        )
+        self.outlier_size = (
+            len(self.pos_files) + len(self.pos_anomaly_files) + len(self.neg_files)
+        )
         self.caches_size = (
             len(self.pos_files)
             # + len(self.neg_files)

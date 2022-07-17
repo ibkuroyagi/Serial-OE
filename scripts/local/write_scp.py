@@ -41,6 +41,11 @@ def get_args():
         type=int,
         default=0,
     )
+    parser.add_argument(
+        "--max_anomaly_pow",
+        type=int,
+        default=7,
+    )
     return parser.parse_args()
 
 
@@ -99,6 +104,56 @@ def write_eval(args):
     ) as g:
         for h5_file in sorted(h5_list):
             g.write(f"{h5_file}\n")
+    # random sampling anomaly data for each ID.
+    machine = args.dumpdir[0].split("/")[-2]
+    for seed in range(5):
+        random.seed(seed)
+        with codecs.open(
+            os.path.join(
+                args.dumpdir[0],
+                f"train_anomaly0_max{args.max_anomaly_pow}_seed{seed}.scp",
+            ),
+            "w",
+            encoding="utf-8",
+        ) as g:
+            g.write("")
+        for pow in range(args.max_anomaly_pow):
+            use_anomaly_list = []
+            n_use = 2**pow
+            for id_ in range(7):
+                anomaly_id_list = []
+                if machine == "ToyCar":
+                    id_ += 1
+                elif machine == "ToyConveyor":
+                    id_ += 1
+                    if id_ == 7:
+                        continue
+                for h5 in h5_list:
+                    if ("anomaly" in h5) and (int(h5.split("_")[-2]) == id_):
+                        anomaly_id_list.append(h5)
+                # Select max_anomaly_pow sample
+                use_anomaly_list += random.sample(anomaly_id_list, n_use)
+            with codecs.open(
+                os.path.join(
+                    args.dumpdir[0],
+                    f"train_anomaly{n_use}_max{args.max_anomaly_pow}_seed{seed}.scp",
+                ),
+                "w",
+                encoding="utf-8",
+            ) as g:
+                for h5_file in sorted(use_anomaly_list):
+                    g.write(f"{h5_file}\n")
+
+        with codecs.open(
+            os.path.join(
+                args.dumpdir[0], f"eval_max{args.max_anomaly_pow}_seed{seed}.scp"
+            ),
+            "w",
+            encoding="utf-8",
+        ) as g:
+            for h5 in h5_list:
+                if h5 not in use_anomaly_list:
+                    g.write(f"{h5}\n")
 
 
 def write_dev(args):
