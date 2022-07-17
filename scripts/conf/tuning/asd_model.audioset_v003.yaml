@@ -55,7 +55,7 @@ scheduler_params:
 #                    INTERVAL SETTING                     #
 ###########################################################
 train_max_epochs: 100 # Number of training steps.
-save_interval_epochs: 20 # Interval steps to save checkpoint.
+save_interval_epochs: 100 # Interval steps to save checkpoint.
 log_interval_epochs: 5 # Interval steps to record the training log.
 ###########################################################
 #                     OTHER SETTING                       #
