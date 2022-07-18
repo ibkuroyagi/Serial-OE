@@ -117,7 +117,9 @@ def main():
         config["sec"] = 10
         config["n_split"] = 1
     seed_everything(seed=config["seed"])
-    config["batch_size"] = config["n_pos"] + config["n_neg"]
+    config["batch_size"] = (
+        config["n_pos"] + config["n_neg"] + config.get("n_anomaly", 0)
+    )
     for key, value in config.items():
         logging.info(f"{key} = {value}")
 
