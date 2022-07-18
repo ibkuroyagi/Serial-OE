@@ -20,7 +20,7 @@ machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 # %%
 # 異常スコアの変遷をエラーバー(標準誤差,SE)をプロットする
 
-seed_list = [0, 1, 2]
+seed_list = [0, 1, 2, 3, 4]
 n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
 anomaly_score_list = np.zeros((len(machines), len(n_anomaly_list), len(seed_list)))
 for k, seed in enumerate(seed_list):

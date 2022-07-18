@@ -6,7 +6,7 @@
 . ./path.sh || exit 1
 
 dumpdir="dump"
-pos_machine="fan"
+pos_machine="valve"
 checkpoint="checkpoint-100epochs"
 no="audioset_v000"
 

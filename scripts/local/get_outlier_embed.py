@@ -7,7 +7,7 @@
 
 import argparse
 import logging
-import os
+import csv
 import sys
 import numpy as np
 import matplotlib
@@ -203,7 +203,7 @@ def main():
     )
     audioset_loader = DataLoader(
         audioset_dataset,
-        batch_size=config["batch_size"],
+        batch_size=config["batch_size"] * 8,
         shuffle=False,
         num_workers=config["num_workers"],
         pin_memory=config["pin_memory"],
@@ -220,85 +220,84 @@ def main():
         f"Epochs:{state_dict['epochs']}, "
         f"BEST loss:{state_dict['best_loss']}"
     )
+    embed_cols = [f"e{i}" for i in range(config["model_params"]["embedding_size"])]
+    pred_section_cols = [
+        f"pred_section{i}" for i in range(config["model_params"]["out_dim"])
+    ]
+    columns = (
+        [
+            "path",
+            "split",
+            "pred_machine",
+            "embed_norm",
+        ]
+        + pred_section_cols
+        + embed_cols
+    )
     for mode, loader in {
         "outlier": outlier_loader,
         "audioset": audioset_loader,
     }.items():
-        pred_machine = np.empty((0, 1))
-        pred_section = np.empty((0, config["model_params"]["out_dim"]))
-        embed = np.empty((0, config["model_params"]["embedding_size"]))
-        path_list = np.empty((0, 1))
-        split_list = np.empty((0, 1))
-        for batch in tqdm(loader):
-            if mode == "outlier":
-                with torch.no_grad():
-                    for i in range(len(batch.keys()) - 1):
-                        y_ = model(batch[f"wave{i}"].to(device))
-                        pred_machine = np.concatenate(
-                            [pred_machine, y_["machine"].cpu().numpy()], axis=0
-                        )
-                        pred_section = np.concatenate(
-                            [pred_section, y_["section"].cpu().numpy()], axis=0
-                        )
-                        embed = np.concatenate(
-                            [embed, y_["embedding"].cpu().numpy()], axis=0
-                        )
-                        path_list = np.concatenate(
-                            [path_list, np.array([batch["path"]])]
-                        )
-                        split_list = np.concatenate(
-                            [split_list, np.ones((len(y_["embedding"]), 1)) * i]
-                        )
-            elif mode == "audioset":
-                with torch.no_grad():
-                    for i in range(5):
-                        y_ = model(batch[f"wave{i}"].to(device))
-                        pred_machine = np.concatenate(
-                            [pred_machine, y_["machine"].cpu().numpy()], axis=0
-                        )
-                        pred_section = np.concatenate(
-                            [pred_section, y_["section"].cpu().numpy()], axis=0
-                        )
-                        embed = np.concatenate(
-                            [embed, y_["embedding"].cpu().numpy()], axis=0
-                        )
-                        path_list = np.concatenate([path_list, batch["path"][:, None]])
-                        split_list = np.concatenate(
-                            [split_list, np.ones((len(y_["embedding"]), 1)) * i]
-                        )
-        embed_cols = [f"e{i}" for i in range(config["model_params"]["embedding_size"])]
-        pred_section_cols = [
-            f"pred_section{i}" for i in range(config["model_params"]["out_dim"])
-        ]
-        columns = (
-            [
-                "path",
-                "split",
-                "pred_machine",
-                "embed_norm",
-            ]
-            + pred_section_cols
-            + embed_cols
-        )
-
-        logging.info(
-            f"path_list:{path_list.shape}, split_list:{split_list.shape}, "
-            f"pred_section:{pred_section.shape}, embed:{embed.shape}"
-        )
-        df = pd.DataFrame(embed, columns=embed_cols)
-        df["path"] = path_list
-        df["split"] = split_list.astype(int)
-        df["pred_machine"] = pred_machine
-        df["embed_norm"] = (
-            np.sqrt(np.power(embed, 2).sum(1))
-            / config["model_params"]["embedding_size"]
-        )
-        df[pred_section_cols] = pred_section
-        df = df[columns]
-        agg_df = df.groupby(by="path").mean().reset_index()
         csv_path = args.checkpoint.replace(".pkl", f"_{mode}_mean.csv")
-        agg_df.to_csv(csv_path, index=False)
-        logging.info(f"Saved at {csv_path}")
+        with open(csv_path, "w", newline="") as g:
+            writer = csv.writer(g)
+            writer.writerow(columns)
+            for batch in tqdm(loader):
+                b_pred_machine = np.empty((0, 1))
+                b_pred_section = np.empty((0, config["model_params"]["out_dim"]))
+                b_embed = np.empty((0, config["model_params"]["embedding_size"]))
+                b_path_list = np.empty((0, 1))
+                b_split_list = np.empty((0, 1))
+                if mode == "outlier":
+                    with torch.no_grad():
+                        for i in range(len(batch.keys()) - 1):
+                            y_ = model(batch[f"wave{i}"].to(device))
+                            b_pred_machine = np.concatenate(
+                                [b_pred_machine, y_["machine"].cpu().numpy()], axis=0
+                            )
+                            b_pred_section = np.concatenate(
+                                [b_pred_section, y_["section"].cpu().numpy()], axis=0
+                            )
+                            b_embed = np.concatenate(
+                                [b_embed, y_["embedding"].cpu().numpy()], axis=0
+                            )
+                            b_path_list = np.concatenate(
+                                [b_path_list, np.array([batch["path"]])]
+                            )
+                            b_split_list = np.concatenate(
+                                [b_split_list, np.ones((len(y_["embedding"]), 1)) * i]
+                            )
+                elif mode == "audioset":
+                    with torch.no_grad():
+                        for i in range(5):
+                            y_ = model(batch[f"wave{i}"].to(device))
+                            b_pred_machine = np.concatenate(
+                                [b_pred_machine, y_["machine"].cpu().numpy()], axis=0
+                            )
+                            b_pred_section = np.concatenate(
+                                [b_pred_section, y_["section"].cpu().numpy()], axis=0
+                            )
+                            b_embed = np.concatenate(
+                                [b_embed, y_["embedding"].cpu().numpy()], axis=0
+                            )
+                            b_path_list = np.concatenate(
+                                [b_path_list, np.array(batch["path"]).reshape(-1, 1)]
+                            )
+                            b_split_list = np.concatenate(
+                                [b_split_list, np.ones((len(y_["embedding"]), 1)) * i]
+                            )
+                b_df = pd.DataFrame(b_embed, columns=embed_cols)
+                b_df["path"] = b_path_list
+                b_df["split"] = b_split_list.astype(int)
+                b_df["pred_machine"] = b_pred_machine
+                b_df["embed_norm"] = (
+                    np.sqrt(np.power(b_embed, 2).sum(1))
+                    / config["model_params"]["embedding_size"]
+                )
+                b_df[pred_section_cols] = b_pred_section
+                b_df = b_df[columns]
+                b_agg_df = b_df.groupby(by="path").mean().reset_index()
+                writer.writerows(b_agg_df.values)
 
 
 if __name__ == "__main__":
