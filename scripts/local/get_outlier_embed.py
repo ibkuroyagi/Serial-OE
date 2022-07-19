@@ -3,11 +3,12 @@
 
 # Copyright 2022 Ibuki Kuroyanagi
 
-"""Extract embedding vectors."""
+"""Extract embedding vectors from outliers."""
 
 import argparse
-import logging
 import csv
+import json
+import logging
 import sys
 import numpy as np
 import matplotlib
@@ -16,15 +17,14 @@ import torch
 import yaml
 import h5py
 from torch.utils.data import DataLoader
-import json
-import logging
-import numpy as np
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
 import asd_tools
 import asd_tools.losses
 import asd_tools.models
+from asd_tools.datasets import OutlierWaveASDDataset
+from asd_tools.datasets import WaveEvalCollator
 from asd_tools.utils import seed_everything
 
 # set to avoid matplotlib error in CLI environment
@@ -93,13 +93,39 @@ class OutlierDataset(Dataset):
 def main():
     """Run training process."""
     parser = argparse.ArgumentParser(
-        description="Train outlier exposure model (See detail in asd_tools/bin/train.py)."
+        description="Extract embedding vectors from outliers."
     )
     parser.add_argument(
         "--pos_machine",
         default=None,
         type=str,
         help="root directory of positive train dataset.",
+    )
+    parser.add_argument(
+        "--train_pos_machine_scp",
+        default=None,
+        type=str,
+        help="root directory of positive train dataset.",
+    )
+    parser.add_argument(
+        "--train_neg_machine_scps",
+        default=[],
+        type=str,
+        nargs="*",
+        help="list of root directories of positive train datasets.",
+    )
+    parser.add_argument(
+        "--valid_pos_machine_scp",
+        default=None,
+        type=str,
+        help="root directory of positive valid dataset.",
+    )
+    parser.add_argument(
+        "--valid_neg_machine_scps",
+        default=[],
+        type=str,
+        nargs="*",
+        help="list of root directories of positive train datasets.",
     )
     parser.add_argument(
         "--outlier_scps",
@@ -182,18 +208,59 @@ def main():
         df = pd.read_csv(args.checkpoint.replace(".pkl", f"_{mode}.csv"))
         agg_df = df.groupby(by="path").mean().reset_index()
         agg_df.to_csv(args.checkpoint.replace(".pkl", f"_{mode}_mean.csv"), index=False)
+    # get dataset
+    train_dataset = OutlierWaveASDDataset(
+        pos_machine_scp=args.train_pos_machine_scp,
+        neg_machine_scps=args.train_neg_machine_scps,
+        outlier_scps=[],
+        allow_cache=True,
+        statistic_path=args.statistic_path,
+        in_sample_norm=config.get("in_sample_norm", False),
+    )
+    logging.info(f"The number of train files = {len(train_dataset)}.")
+    logging.info(f"pos = {len(train_dataset.pos_files)}.")
+    valid_dataset = OutlierWaveASDDataset(
+        pos_machine_scp=args.valid_pos_machine_scp,
+        neg_machine_scps=args.valid_neg_machine_scps,
+        outlier_scps=[],
+        allow_cache=True,
+        statistic_path=args.statistic_path,
+        in_sample_norm=config.get("in_sample_norm", False),
+    )
+    logging.info(f"The number of validation files = {len(valid_dataset)}.")
+    logging.info(f"pos = {len(valid_dataset.pos_files)}.")
     outlier_dataset = OutlierDataset(
         outlier_scps=args.outlier_scps,
         statistic_path=args.statistic_path,
         in_sample_norm=config.get("in_sample_norm", False),
     )
+    logging.info(f"The number of outlier files = {len(outlier_dataset)}.")
     audioset_dataset = OutlierDataset(
         outlier_scps=args.audioset_scps,
         statistic_path=args.statistic_path,
         in_sample_norm=config.get("in_sample_norm", False),
     )
-    logging.info(f"The number of outlier files = {len(outlier_dataset)}.")
     logging.info(f"The number of audioset files = {len(audioset_dataset)}.")
+    collator = WaveEvalCollator(
+        sf=config["sf"],
+        sec=config["sec"],
+        n_split=config["n_split"],
+        is_label=True,
+    )
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config["batch_size"],
+        collate_fn=collator,
+        num_workers=config["num_workers"],
+        pin_memory=config["pin_memory"],
+    )
+    valid_loader = DataLoader(
+        valid_dataset,
+        batch_size=config["batch_size"],
+        collate_fn=collator,
+        num_workers=config["num_workers"],
+        pin_memory=config["pin_memory"],
+    )
     outlier_loader = DataLoader(
         outlier_dataset,
         batch_size=1,
@@ -234,9 +301,16 @@ def main():
         + pred_section_cols
         + embed_cols
     )
+    split_dict = {
+        "dcase_train": config["n_split"],
+        "dcase_valid": config["n_split"],
+        "audioset": 5,
+    }
     for mode, loader in {
-        "outlier": outlier_loader,
-        "audioset": audioset_loader,
+        "dcase_train": train_loader,
+        "dcase_valid": valid_loader,
+        # "outlier": outlier_loader,
+        # "audioset": audioset_loader,
     }.items():
         csv_path = args.checkpoint.replace(".pkl", f"_{mode}_mean.csv")
         with open(csv_path, "w", newline="") as g:
@@ -267,10 +341,13 @@ def main():
                             b_split_list = np.concatenate(
                                 [b_split_list, np.ones((len(y_["embedding"]), 1)) * i]
                             )
-                elif mode == "audioset":
+                elif mode in ["dcase_train", "dcase_valid", "audioset"]:
                     with torch.no_grad():
-                        for i in range(5):
-                            y_ = model(batch[f"wave{i}"].to(device))
+                        for i in range(split_dict[mode]):
+                            if mode == "audioset":
+                                y_ = model(batch[f"wave{i}"].to(device))
+                            else:
+                                y_ = model(batch[f"X{i}"].to(device))
                             b_pred_machine = np.concatenate(
                                 [b_pred_machine, y_["machine"].cpu().numpy()], axis=0
                             )

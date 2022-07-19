@@ -1,8 +1,8 @@
 #!/bin/bash
 
 stage=1
-start_stage=3
-no=audioset_v000
+start_stage=4
+no=audioset_v200
 feature=_embed
 use_10sec=false
 audioset_pow=0
@@ -11,8 +11,8 @@ use_uav=false
 use_idmt=false
 # anomaly related
 max_anomaly_pow=6
-n_anomaly=-1
-seed=0
+n_anomaly=16
+seed=2
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 
@@ -20,14 +20,14 @@ epochs="100"
 
 set -euo pipefail
 machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
-# machines=("fan")
+machines=("ToyConveyor")
 # machines=("pump" "slider" "ToyCar" "ToyConveyor" "valve")
 resume=""
 tag=${no}
 if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
     for machine in "${machines[@]}"; do
         echo "Start model training ${machine}/${no}. resume:${resume}"
-        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}${threshold}" ./local/use_outlier.sh \
+        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}" ./run.sh \
             --stage "${start_stage}" \
             --stop_stage "5" \
             --conf "conf/tuning/asd_model.${no}.yaml" \

@@ -28,6 +28,8 @@ audioset_dir=/path/to/AudioSet/audios
 audioset_pow=21
 use_uav=false
 use_idmt=false
+outlier_scps=""
+valid_outlier_scps=""
 # inference related setting
 epochs="20 40 60 80 100"
 checkpoints=""
@@ -214,20 +216,23 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
 fi
 
 tag+="${end_str}"
-outlier_scps=""
-valid_outlier_scps=""
-if "${use_audioset}"; then
-    tag+="_p${audioset_pow}"
-    outlier_scps+="${dumpdir}/audioset/unbalanced_train_segments/audioset_2__${audioset_pow}.scp "
+if [ -z "${outlier_scps}" ]; then
+    if "${use_audioset}"; then
+        tag+="_p${audioset_pow}"
+        outlier_scps+="${dumpdir}/audioset/unbalanced_train_segments/audioset_2__${audioset_pow}.scp "
+
+    fi
+    if "${use_uav}"; then
+        tag+="_uav"
+        outlier_scps+="${dumpdir}/uav/uav.scp "
+    fi
+    if "${use_idmt}"; then
+        tag+="_idmt"
+        outlier_scps+="${dumpdir}/idmt/idmt.scp "
+    fi
+fi
+if [ -z "${valid_outlier_scps}" ]; then
     valid_outlier_scps+="${dumpdir}/audioset/balanced_train_segments/audioset.scp"
-fi
-if "${use_uav}"; then
-    tag+="_uav"
-    outlier_scps+="${dumpdir}/uav/uav.scp "
-fi
-if "${use_idmt}"; then
-    tag+="_idmt"
-    outlier_scps+="${dumpdir}/idmt/idmt.scp "
 fi
 anomaly_end_str=""
 train_anomaly_scp=""

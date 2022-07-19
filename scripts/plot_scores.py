@@ -4,14 +4,6 @@ import numpy as np
 import os
 import glob
 import matplotlib.pyplot as plt
-import torch
-import torch.nn as nn
-import torchaudio.transforms as T
-import torchaudio
-import h5py
-import librosa
-import soundfile as sf
-from statistics import mean
 from IPython.core.display import display
 
 
@@ -19,13 +11,13 @@ machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 
 # %%
 # 異常スコアの変遷をエラーバー(標準誤差,SE)をプロットする
-
+no = 200
 seed_list = [0, 1, 2, 3, 4]
 n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
 anomaly_score_list = np.zeros((len(machines), len(n_anomaly_list), len(seed_list)))
 for k, seed in enumerate(seed_list):
     for j, n_anomaly in enumerate(n_anomaly_list):
-        score_path = f"exp/all/audioset_v100_0.15_anomaly{n_anomaly}_max6_seed{seed}/checkpoint-100epochs/score_embed.csv"
+        score_path = f"exp/all/audioset_v{no}_0.15_anomaly{n_anomaly}_max6_seed{seed}/checkpoint-100epochs/score_embed.csv"
         df = pd.read_csv(score_path)
         df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
         df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
@@ -73,7 +65,8 @@ for i, machine in enumerate(machines):
         ax.set_xlabel("The number of anomaly samples")
         ax.set_ylabel("ave-AUC [%]")
         ax.set_title(f"The number of anomalous data vs. {machine} ASD performance")
-        plt.show()
+        os.makedirs(f"exp/fig", exist_ok=True)
+        plt.savefig(f"exp/fig/{no}_{machine}.png")
 
 yerr_se = anomaly_score_list.mean(0).std(1) / np.sqrt(len(seed_list))
 x = np.arange(len(n_anomaly_list))
@@ -99,4 +92,6 @@ ax.set_ylabel("ave-AUC [%]")
 ax.set_title("The number of anomalous data vs. all ASD performance")
 plt.legend()
 plt.tight_layout()
+plt.savefig(f"exp/fig/{no}_all.png")
+
 # %%

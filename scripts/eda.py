@@ -4,19 +4,21 @@ import numpy as np
 import os
 import glob
 import matplotlib.pyplot as plt
-import timm
 import torch
-import torch.nn as nn
-import torchaudio.transforms as T
-import torchaudio
+from sklearn.mixture import GaussianMixture
 import h5py
 import librosa
 import soundfile as sf
 from statistics import mean
 from IPython.core.display import display
+from asd_tools.utils import sigmoid
+from asd_tools.utils import seed_everything
+from asd_tools.utils import zscore
+from sklearn.manifold import TSNE
+
+machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 
 # %%
-machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 # machine = machines[0]
 for machine in machines:
     with open(f"dump/dev/{machine}/test/eval.scp", "r") as f:
@@ -46,12 +48,7 @@ for machine in machines:
     df = pd.DataFrame(dir_list, columns=["path"])
     df["section"] = df["path"].map(lambda x: int(x.split("_")[2]))
     print("eval/test", machine, sorted(df["section"].unique()))
-# %%
-a = np.array([0, 0, 0, 1, 1, 1, 2, 2, 2, 2])
-dev_sec = [1, 2, 3]
-dev_idx = np.zeros(len(df)).astype(bool)
-for sec in dev_sec:
-    dev_idx |= df["section"] == sec
+
 # %%
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 
@@ -84,51 +81,34 @@ columns = [
 ]
 sorted_df = df.sort_values(by=f"eval_{machine}_hauc", ascending=False)[columns]
 # %%
-df0 = pd.read_csv("exp/all/audioset_v000_0.1_p0/score_embed.csv")
-df0.sort_values(by="eval_hauc", ascending=False, inplace=True)
-df0.reset_index(drop=True, inplace=True)
-# %%
-df4 = pd.read_csv("exp/all/audioset_v000_0.15_p0/score_embed.csv")
-df4.sort_values(by="eval_hauc", ascending=False, inplace=True)
-df4.reset_index(drop=True, inplace=True)
-df4.head(10)
-# %%
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
-df_list = []
-for rate in [0.1, 0.15]:
-    score_list = [
-        f"exp/all/audioset_v000_{rate}/checkpoint-100epochs/score_embed.csv",
-        # "exp/all/audioset_v001_0.15_p0/checkpoint-100epochs/score_embed.csv",
-    ]
-    for score_path in score_list:
-        df = pd.read_csv(score_path)
-        df_list.append(df)
-    df = pd.concat(df_list)
-    df.sort_values(by="eval_hauc", ascending=False, inplace=True)
-    df.reset_index(drop=True, inplace=True)
-    df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
-    df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
-    # df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
-    df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
-    df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
-    df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
+score_path = (
+    "exp/all/audioset_v000_0.15_p21_uav_idmt/checkpoint-100epochs/score_embed.csv"
+)
+df = pd.read_csv(score_path)
+df.sort_values(by="eval_hauc", ascending=False, inplace=True)
+df.reset_index(drop=True, inplace=True)
+df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
+df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
+# df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
+df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
+df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
+df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
 
-    auc_list = []  # AUC,pAUC,mAUC
-    auc_cols = []
-    mauc_cols = []
-    for machine in machines:
-        sorted_df = df[
-            (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 1)
-        ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
-        sorted_df.reset_index(drop=True, inplace=True)
-        dev_cols = [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
-        dev_cols = [f"dev_{machine}_mauc"]
-        auc_cols += [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
-        mauc_cols.append(f"dev_{machine}_mauc")
-        auc_list += list(sorted_df.loc[0, dev_cols].values * 100)
-        print(sorted_df.loc[0, "post_process"])
-    print(auc_list)
-    print(mean(auc_list))
+auc_list = []  # AUC,pAUC,mAUC
+hauc_mauc_list = []
+for i, machine in enumerate(machines):
+    sorted_df = df[
+        (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 2)
+    ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
+    sorted_df.reset_index(drop=True, inplace=True)
+    auc_pauc = list(
+        sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
+    )
+    auc_list += auc_pauc
+    hauc_mauc_list += [mean(auc_pauc), sorted_df.loc[0, f"dev_{machine}_mauc"] * 100]
+print("auc_pauc", auc_list)
+print("hauc_mauc", hauc_mauc_list)
 # %%
 
 
@@ -198,3 +178,137 @@ plt.colorbar()
 plt.figure()
 plt.imshow(w1[0] - w2[0], aspect="auto")
 plt.colorbar()
+# %%
+a = np.arange(10, 20)
+b = np.random.choice(a, 20)
+print(b)
+# %%
+path = "exp/fan/audioset_v000_0.1/checkpoint-100epochs/checkpoint-100epochs_valid.csv"
+valid_df = pd.read_csv(
+    "exp/fan/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_valid.csv"
+)
+# eval_df = pd.read_csv("exp/fan/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_eval.csv")
+eval_df = pd.read_csv(
+    "exp/fan/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_outlier_mean.csv"
+)
+
+# df_cols = pd.read_csv(path, header=0, nrows=1).columns
+# df = pd.read_csv(path, header=0, skiprows=5, nrows=1500, names=df_cols)
+df = pd.read_csv(path)
+
+# %%
+col = "pred_machine"
+# col = "pred_section0"
+for machine in machines:
+    # agg_df = pd.read_csv(
+    #     f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_outlier_mean.csv"
+    # )
+    path = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_audioset_mean.csv"
+    df_cols = pd.read_csv(path, header=0, nrows=1).columns
+    agg_df = pd.read_csv(path, header=0, skiprows=5, nrows=100000, names=df_cols)
+    plt.figure(figsize=(6, 6))
+    # plt.hist(agg_df[col], bins=50, alpha=0.5, label="outlier")
+    plt.hist(sigmoid(agg_df[col]), bins=50, alpha=0.5, label="outlier")
+    plt.legend()
+    use_cnt = (sigmoid(agg_df[col]) > 0.5).sum()
+    N = len(agg_df)
+    plt.title(f"{machine}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.1f}")
+    plt.tight_layout()
+# %%
+machine = machines[0]
+checkpoint_dir = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs"
+col = "pred_machine"
+agg_df = pd.read_csv(
+    os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
+)
+# %%
+
+n_plot = 50
+h_agg_df = agg_df[sigmoid(agg_df[col]) > 0.999].iloc[:n_plot]
+h_agg_df["label"] = "high"
+m_agg_df = agg_df[(sigmoid(agg_df[col]) > 0.4) & (sigmoid(agg_df[col]) < 0.6)].iloc[
+    :n_plot
+]
+h_agg_df["label"] = "mid"
+l_agg_df = agg_df[sigmoid(agg_df[col]) < 0.05].iloc[:n_plot]
+h_agg_df["label"] = "low"
+# %%
+# 埋め込みベクトルの可視化
+# 1. IDごとに色を変えて正常〇と異常✕を各50サンプルをプロット（4色）
+# 2. 異なるマシンタイプも色を変える（1色）
+# 3. 外れ値も色を変える（閾値ごとに色を変える 0, 0.5, 0.999）
+
+other_machines = machines.copy()
+other_machines.remove(machine)
+if machine in ["fan", "pump", "slider", "valve"]:
+    dev_section = [0, 2, 4, 6]
+elif machine == "ToyCar":
+    dev_section = [0, 1, 2, 3]
+elif machine == "ToyConveyor":
+    dev_section = [0, 1, 2]
+eval_df = pd.read_csv(
+    os.path.join(checkpoint_dir, "checkpoint-100epochs_eval_mean.csv")
+)
+eval_df["fid"] = eval_df["path"].map(lambda x: int(x.split("_")[-1].split(".")[0]))
+eval_df = eval_df[eval_df["fid"] < n_plot]
+
+dcase_train_df = pd.read_csv(
+    os.path.join(checkpoint_dir, "checkpoint-100epochs_dcase_train_mean.csv")
+)
+dcase_train_df["fid"] = dcase_train_df["path"].map(
+    lambda x: int(x.split("_")[-1].split(".")[0])
+)
+dcase_train_df["section"] = dcase_train_df["path"].map(lambda x: int(x.split("_")[-2]))
+dcase_train_df["machine"] = dcase_train_df["path"].map(lambda x: x.split("/")[2])
+dcase_train_df = dcase_train_df[dcase_train_df["fid"] < n_plot]
+for sec in dev_section:
+    print(sec)
+    eval_df.loc[
+        (eval_df["section"] == sec) & (eval_df["is_normal"] == 1),
+        "label",
+    ] = f"eval_normal_{sec}"
+    eval_df.loc[
+        (eval_df["section"] == sec) & (eval_df["is_normal"] == 0),
+        "label",
+    ] = f"eval_anomaly_{sec}"
+    idx = (dcase_train_df["section"] == sec) & (dcase_train_df["machine"] == machine)
+    dcase_train_df.loc[
+        idx,
+        "label",
+    ] = f"train_normal_{sec}"
+    for om in other_machines:
+        eval_df.loc[
+            (eval_df["section"] == sec)
+            & (eval_df["machine"] == om)
+            & (eval_df["fid"] < n_plot // 15),
+            "label",
+        ] = f"eval_pseudo-anomaly"
+        dcase_train_df.loc[
+            (dcase_train_df["section"] == sec)
+            & (dcase_train_df["machine"] == om)
+            & (dcase_train_df["fid"] < n_plot // 15),
+            "label",
+        ] = f"train_pseudo-anomaly"
+embed_cols = [f"e{i}" for i in range(128)]
+
+
+embed = eval_df.loc[:, embed_cols].values
+tsne = TSNE(n_components=2, random_state=2022, perplexity=8, n_iter=1000)
+X_embedded = tsne.fit_transform(embed)
+# %%
+plt.figure(figsize=(20, 20))
+for dev_sec in dev_section:
+    normal_idx = (eval_df["is_normal"] == 1) & (eval_df["section"] == dev_sec)
+    plt.scatter(
+        X_embedded[normal_idx, 0], X_embedded[normal_idx, 1], label="normal", marker="o"
+    )
+    anomaly_idx = (eval_df["is_normal"] == 0) & (eval_df["section"] == dev_sec)
+    plt.scatter(
+        X_embedded[anomaly_idx, 0],
+        X_embedded[anomaly_idx, 1],
+        label="anomaly",
+        marker="x",
+    )
+plt.legend()
+
+# %%
