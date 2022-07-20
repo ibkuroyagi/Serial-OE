@@ -4,7 +4,7 @@ stage=1       # job
 start_stage=3 # scp
 run_stage=3   # training
 
-threshold=0.999
+threshold=1
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 
@@ -19,12 +19,12 @@ machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
 if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
     for machine in "${machines[@]}"; do
         echo "Start model training ${machine}/${no}_outlier${threshold}_${valid_ratio}."
-        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${no}_outlier${threshold}_${valid_ratio}" ./run.sh \
+        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${no}_outlier${threshold}_${valid_ratio}" ./local/use_outlier.sh \
             --stage "${start_stage}" \
             --run_stage "${run_stage}" \
             --stop_stage "3" \
-            --conf "conf/tuning/asd_model.${no}.yaml" \
             --pos_machine "${machine}" \
+            --no "${no}" \
             --epochs "${epochs}" \
             --valid_ratio "${valid_ratio}" \
             --threshold "${threshold}"

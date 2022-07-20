@@ -79,6 +79,12 @@ def main():
         help="Extracted embedding file for validation.",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=2022,
+        help="Seed of the model. (default=2022)",
+    )
+    parser.add_argument(
         "--verbose",
         type=int,
         default=1,

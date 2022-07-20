@@ -69,7 +69,22 @@ def main():
     fig_path = f"exp/fig/select_outlier_{args.pos_machine}.png"
     plt.savefig(fig_path)
     logging.info(f"Saved at {fig_path}.")
-    for threshold in [0, 0.05, 0.1, 0.5, 0.9, 0.95, 0.99, 0.999]:
+    for threshold in [
+        0,
+        0.05,
+        0.1,
+        0.5,
+        0.9,
+        0.95,
+        0.99,
+        0.999,
+        0.9995,
+        0.9999,
+        0.99995,
+        0.99999,
+        0.999995,
+        1,
+    ]:
         use_idx = sig > threshold
         use_cnt = use_idx.sum()
         N = len(agg_df)

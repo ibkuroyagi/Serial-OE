@@ -83,7 +83,7 @@ sorted_df = df.sort_values(by=f"eval_{machine}_hauc", ascending=False)[columns]
 # %%
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 score_path = (
-    "exp/all/audioset_v000_0.15_p21_uav_idmt/checkpoint-100epochs/score_embed.csv"
+    "exp/all/audioset_v001_0.15/checkpoint-100epochs/score_dev_embed.csv"
 )
 df = pd.read_csv(score_path)
 df.sort_values(by="eval_hauc", ascending=False, inplace=True)
@@ -215,23 +215,64 @@ for machine in machines:
     plt.title(f"{machine}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.1f}")
     plt.tight_layout()
 # %%
-machine = machines[0]
+machine = machines[1]
+checkpoint_dir = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs"
+col = "pred_machine"
+# agg_df = pd.read_csv(
+#     os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
+# )
+agg_df = pd.concat(
+    [
+        pd.read_csv(
+            os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
+            usecols=["path", col],
+        ),
+        pd.read_csv(
+            os.path.join(checkpoint_dir, "checkpoint-100epochs_audioset_mean.csv"),
+            usecols=["path", col],
+        ),
+    ]
+)
+# %%
+sig = sigmoid(agg_df[col])
+for threshold in [
+    0,
+    0.05,
+    0.1,
+    0.5,
+    0.9,
+    0.95,
+    0.99,
+    0.999,
+    0.9995,
+    0.9999,
+    0.99995,
+    0.99999,
+    0.999995,
+    1,
+]:
+    use_idx = sig > threshold
+    use_cnt = use_idx.sum()
+    N = len(agg_df)
+    title = f"{machine}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.2f}[%], {threshold}"
+    print(title)
+# %%
+machine = machines[1]
+machine = machines[1]
 checkpoint_dir = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs"
 col = "pred_machine"
 agg_df = pd.read_csv(
     os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
 )
-# %%
-
 n_plot = 50
 h_agg_df = agg_df[sigmoid(agg_df[col]) > 0.999].iloc[:n_plot]
 h_agg_df["label"] = "high"
 m_agg_df = agg_df[(sigmoid(agg_df[col]) > 0.4) & (sigmoid(agg_df[col]) < 0.6)].iloc[
     :n_plot
 ]
-h_agg_df["label"] = "mid"
-l_agg_df = agg_df[sigmoid(agg_df[col]) < 0.05].iloc[:n_plot]
-h_agg_df["label"] = "low"
+m_agg_df["label"] = "mid"
+l_agg_df = agg_df[sigmoid(agg_df[col]) < 0.1].iloc[:n_plot]
+l_agg_df["label"] = "low"
 # %%
 # 埋め込みベクトルの可視化
 # 1. IDごとに色を変えて正常〇と異常✕を各50サンプルをプロット（4色）
@@ -261,6 +302,16 @@ dcase_train_df["fid"] = dcase_train_df["path"].map(
 dcase_train_df["section"] = dcase_train_df["path"].map(lambda x: int(x.split("_")[-2]))
 dcase_train_df["machine"] = dcase_train_df["path"].map(lambda x: x.split("/")[2])
 dcase_train_df = dcase_train_df[dcase_train_df["fid"] < n_plot]
+dcase_valid_df = pd.read_csv(
+    os.path.join(checkpoint_dir, "checkpoint-100epochs_dcase_valid_mean.csv")
+)
+dcase_valid_df["fid"] = dcase_valid_df["path"].map(
+    lambda x: int(x.split("_")[-1].split(".")[0])
+)
+dcase_valid_df["section"] = dcase_valid_df["path"].map(lambda x: int(x.split("_")[-2]))
+dcase_valid_df["machine"] = dcase_valid_df["path"].map(lambda x: x.split("/")[2])
+dcase_valid_df = dcase_valid_df[dcase_valid_df["fid"] < n_plot]
+
 for sec in dev_section:
     print(sec)
     eval_df.loc[
@@ -277,38 +328,48 @@ for sec in dev_section:
         "label",
     ] = f"train_normal_{sec}"
     for om in other_machines:
-        eval_df.loc[
-            (eval_df["section"] == sec)
-            & (eval_df["machine"] == om)
-            & (eval_df["fid"] < n_plot // 15),
+        dcase_valid_df.loc[
+            (dcase_valid_df["section"] == sec)
+            & (dcase_valid_df["machine"] == om)
+            & (dcase_valid_df["fid"] < n_plot // 15),
             "label",
-        ] = f"eval_pseudo-anomaly"
+        ] = "eval_pseudo-anomaly"
         dcase_train_df.loc[
             (dcase_train_df["section"] == sec)
             & (dcase_train_df["machine"] == om)
             & (dcase_train_df["fid"] < n_plot // 15),
             "label",
-        ] = f"train_pseudo-anomaly"
-embed_cols = [f"e{i}" for i in range(128)]
-
-
-embed = eval_df.loc[:, embed_cols].values
-tsne = TSNE(n_components=2, random_state=2022, perplexity=8, n_iter=1000)
+        ] = "train_pseudo-anomaly"
+embed_cols = ["label"] + [f"e{i}" for i in range(128)]
+# %%
+use_df = pd.concat(
+    [
+        eval_df[embed_cols],
+        dcase_train_df[embed_cols],
+        dcase_valid_df[embed_cols],
+        h_agg_df[embed_cols],
+        m_agg_df[embed_cols],
+        l_agg_df[embed_cols],
+    ]
+)
+use_df = use_df[~use_df["label"].isna()]
+embed = use_df[embed_cols[1:]].values
+tsne = TSNE(n_components=2, random_state=2022, perplexity=10, n_iter=1000)
 X_embedded = tsne.fit_transform(embed)
 # %%
+label_list = list(use_df["label"].unique())
 plt.figure(figsize=(20, 20))
-for dev_sec in dev_section:
-    normal_idx = (eval_df["is_normal"] == 1) & (eval_df["section"] == dev_sec)
-    plt.scatter(
-        X_embedded[normal_idx, 0], X_embedded[normal_idx, 1], label="normal", marker="o"
-    )
-    anomaly_idx = (eval_df["is_normal"] == 0) & (eval_df["section"] == dev_sec)
-    plt.scatter(
-        X_embedded[anomaly_idx, 0],
-        X_embedded[anomaly_idx, 1],
-        label="anomaly",
-        marker="x",
-    )
+for label in label_list:
+    idx = use_df["label"] == label
+    if "eval_normal" in label:
+        marker = "o"
+    elif "eval_anomaly" in label:
+        marker = "x"
+    elif "train_normal" in label:
+        marker = "o"
+    else:
+        marker = ","
+    plt.scatter(X_embedded[idx, 0], X_embedded[idx, 1], label=label, marker=marker)
 plt.legend()
 
 # %%

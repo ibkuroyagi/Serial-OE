@@ -13,7 +13,7 @@ n_jobs=128
 conf=conf/tuning/asd_model.audioset_v000.yaml
 resume=""
 pos_machine=fan
-seed=0 # Seed of scp file.
+seed=-1 # Seed of scp file.
 # directory path setting
 download_dir=downloads
 dumpdir=dump # directory to dump features
@@ -43,7 +43,6 @@ log() {
     local fname=${BASH_SOURCE[1]##*/}
     echo -e "$(date '+%Y/%m/%d %H:%M:%S') (${fname}:${BASH_LINENO[0]}:${FUNCNAME[1]}) $*"
 }
-log "1. resume:${resume}"
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 
@@ -230,6 +229,10 @@ if [ -z "${outlier_scps}" ]; then
         tag+="_idmt"
         outlier_scps+="${dumpdir}/idmt/idmt.scp "
     fi
+fi
+if [ ${seed} -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
+    log "For simple ASD model's seed : ${seed}."
+    tag+="_seed${seed}"
 fi
 if [ -z "${valid_outlier_scps}" ]; then
     valid_outlier_scps+="${dumpdir}/audioset/balanced_train_segments/audioset.scp"
