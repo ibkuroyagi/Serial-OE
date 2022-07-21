@@ -81,34 +81,38 @@ columns = [
 ]
 sorted_df = df.sort_values(by=f"eval_{machine}_hauc", ascending=False)[columns]
 # %%
-machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
-score_path = (
-    "exp/all/audioset_v001_0.15/checkpoint-100epochs/score_dev_embed.csv"
-)
-df = pd.read_csv(score_path)
-df.sort_values(by="eval_hauc", ascending=False, inplace=True)
-df.reset_index(drop=True, inplace=True)
-df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
-df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
-# df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
-df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
-df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
-df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
-
-auc_list = []  # AUC,pAUC,mAUC
-hauc_mauc_list = []
-for i, machine in enumerate(machines):
-    sorted_df = df[
-        (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 2)
-    ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
-    sorted_df.reset_index(drop=True, inplace=True)
-    auc_pauc = list(
-        sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
+for seed in range(5):
+    machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
+    score_path = (
+        f"exp/all/audioset_v008_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
     )
-    auc_list += auc_pauc
-    hauc_mauc_list += [mean(auc_pauc), sorted_df.loc[0, f"dev_{machine}_mauc"] * 100]
-print("auc_pauc", auc_list)
-print("hauc_mauc", hauc_mauc_list)
+    df = pd.read_csv(score_path)
+    df.sort_values(by="eval_hauc", ascending=False, inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
+    df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
+    # df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
+    df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
+    df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
+    df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
+
+    auc_list = []  # AUC,pAUC,mAUC
+    hauc_mauc_list = []
+    for i, machine in enumerate(machines):
+        sorted_df = df[
+            (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 2)
+        ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
+        sorted_df.reset_index(drop=True, inplace=True)
+        auc_pauc = list(
+            sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
+        )
+        auc_list += auc_pauc
+        hauc_mauc_list += [
+            mean(auc_pauc),
+            sorted_df.loc[0, f"dev_{machine}_mauc"] * 100,
+        ]
+    print("auc_pauc", seed, auc_list)
+    print("hauc_mauc", seed, hauc_mauc_list)
 # %%
 
 

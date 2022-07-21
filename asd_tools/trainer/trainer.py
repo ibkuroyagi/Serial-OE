@@ -11,8 +11,6 @@ from sklearn.metrics import f1_score
 
 from tensorboardX import SummaryWriter
 
-# from torch.utils.tensorboard import SummaryWriter
-
 
 from asd_tools.utils import mixup_for_outlier
 from asd_tools.utils import schedule_cos_phases

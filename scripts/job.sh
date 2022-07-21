@@ -11,7 +11,7 @@ use_idmt=false
 # anomaly related
 max_anomaly_pow=6
 n_anomaly=-1
-seed=0
+seed=5
 # inference related
 use_dev=false
 feature=_embed
@@ -23,7 +23,7 @@ epochs="100"
 
 set -euo pipefail
 machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
-# machines=("fan")
+# machines=("valve")
 # machines=("pump" "slider" "ToyCar" "ToyConveyor" "valve")
 resume=""
 tag=${no}
@@ -63,6 +63,9 @@ if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then
         feature="_dev${feature}"
     fi
     tag=${no}_${valid_ratio}
+    if [ ${seed} -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
+        tag+="_seed${seed}"
+    fi
     if [ ${audioset_pow} -gt 0 ]; then
         tag+=_p${audioset_pow}
     fi
