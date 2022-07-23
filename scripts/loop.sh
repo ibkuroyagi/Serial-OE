@@ -1,6 +1,6 @@
 #!/bin/bash
 
-no=008
+no=000
 valid_ratio=0.15
 n_anomaly=-1
 # seed=0

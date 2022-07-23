@@ -19,6 +19,7 @@ feature=_embed
 valid_ratio=0.15
 # use outlier related
 threshold=0.999
+col_name=outlier
 # anomaly related
 seed=0
 
@@ -28,9 +29,11 @@ log() {
 }
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
+set -euo pipefail
+
 end_str="_${valid_ratio}"
 conf="conf/tuning/asd_model.${no}.yaml"
-tag="${no}${end_str}"
+tag="${no}${end_str}_seed${seed}"
 outdir="exp/${pos_machine}/${tag}/${checkpoint}"
 
 if [ "${pos_machine}" = "fan" ]; then
@@ -86,16 +89,16 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     log "Successfully selected outliers."
 fi
 
-outlier_scps="exp/${pos_machine}/${tag}/${checkpoint}/outlier_${threshold}.scp"
+outlier_scps="exp/${pos_machine}/${tag}/${checkpoint}/${col_name}_${threshold}.scp"
 if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
-    log "Start model training ${pos_machine}/${no}_outlier${threshold}_${valid_ratio}."
+    log "Start model training ${pos_machine}/${no}_${col_name}${threshold}_${valid_ratio}."
     ./run.sh \
         --stage "${run_stage}" \
         --stop_stage "5" \
         --conf "conf/tuning/asd_model.${no}.yaml" \
         --pos_machine "${pos_machine}" \
         --resume "${resume}" \
-        --tag "${no}_outlier${threshold}" \
+        --tag "${no}_${col_name}${threshold}" \
         --feature "${feature}" \
         --epochs "${epochs}" \
         --valid_ratio "${valid_ratio}" \

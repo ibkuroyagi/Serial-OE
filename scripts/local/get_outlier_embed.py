@@ -309,8 +309,8 @@ def main():
     for mode, loader in {
         "dcase_train": train_loader,
         "dcase_valid": valid_loader,
-        # "outlier": outlier_loader,
-        # "audioset": audioset_loader,
+        "outlier": outlier_loader,
+        "audioset": audioset_loader,
     }.items():
         csv_path = args.checkpoint.replace(".pkl", f"_{mode}_mean.csv")
         with open(csv_path, "w", newline="") as g:

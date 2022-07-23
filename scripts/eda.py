@@ -15,6 +15,7 @@ from asd_tools.utils import sigmoid
 from asd_tools.utils import seed_everything
 from asd_tools.utils import zscore
 from sklearn.manifold import TSNE
+import umap
 
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 
@@ -81,10 +82,10 @@ columns = [
 ]
 sorted_df = df.sort_values(by=f"eval_{machine}_hauc", ascending=False)[columns]
 # %%
-for seed in range(5):
+for seed in range(3):
     machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
     score_path = (
-        f"exp/all/audioset_v008_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
+        f"exp/all/audioset_v000_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
     )
     df = pd.read_csv(score_path)
     df.sort_values(by="eval_hauc", ascending=False, inplace=True)
@@ -202,14 +203,24 @@ df = pd.read_csv(path)
 
 # %%
 col = "pred_machine"
-# col = "pred_section0"
+col = "pred_section_max"
+
 for machine in machines:
     # agg_df = pd.read_csv(
     #     f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_outlier_mean.csv"
     # )
     path = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_audioset_mean.csv"
     df_cols = pd.read_csv(path, header=0, nrows=1).columns
+    if machine in ["fan", "pump", "slider", "valve"]:
+        dev_section = [0, 1, 2, 3, 4, 5, 6]
+    elif machine == "ToyCar":
+        dev_section = [0, 1, 2, 3, 4, 5, 6]
+    elif machine == "ToyConveyor":
+        dev_section = [0, 1, 2, 3, 4, 5]
     agg_df = pd.read_csv(path, header=0, skiprows=5, nrows=100000, names=df_cols)
+    agg_df["pred_section_max"] = agg_df[[f"pred_section{i}" for i in dev_section]].max(
+        1
+    )
     plt.figure(figsize=(6, 6))
     # plt.hist(agg_df[col], bins=50, alpha=0.5, label="outlier")
     plt.hist(sigmoid(agg_df[col]), bins=50, alpha=0.5, label="outlier")
@@ -241,18 +252,24 @@ agg_df = pd.concat(
 sig = sigmoid(agg_df[col])
 for threshold in [
     0,
-    0.05,
+    # 0.05,
     0.1,
+    0.2,
+    0.3,
+    0.4,
     0.5,
+    0.6,
+    0.7,
+    0.8,
     0.9,
     0.95,
     0.99,
     0.999,
-    0.9995,
-    0.9999,
-    0.99995,
-    0.99999,
-    0.999995,
+    # 0.9995,
+    # 0.9999,
+    # 0.99995,
+    # 0.99999,
+    # 0.999995,
     1,
 ]:
     use_idx = sig > threshold
@@ -262,13 +279,13 @@ for threshold in [
     print(title)
 # %%
 machine = machines[1]
-machine = machines[1]
+use_train = False
 checkpoint_dir = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs"
 col = "pred_machine"
 agg_df = pd.read_csv(
     os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
 )
-n_plot = 50
+n_plot = 100
 h_agg_df = agg_df[sigmoid(agg_df[col]) > 0.999].iloc[:n_plot]
 h_agg_df["label"] = "high"
 m_agg_df = agg_df[(sigmoid(agg_df[col]) > 0.4) & (sigmoid(agg_df[col]) < 0.6)].iloc[
@@ -277,7 +294,7 @@ m_agg_df = agg_df[(sigmoid(agg_df[col]) > 0.4) & (sigmoid(agg_df[col]) < 0.6)].i
 m_agg_df["label"] = "mid"
 l_agg_df = agg_df[sigmoid(agg_df[col]) < 0.1].iloc[:n_plot]
 l_agg_df["label"] = "low"
-# %%
+
 # 埋め込みベクトルの可視化
 # 1. IDごとに色を変えて正常〇と異常✕を各50サンプルをプロット（4色）
 # 2. 異なるマシンタイプも色を変える（1色）
@@ -287,10 +304,14 @@ other_machines = machines.copy()
 other_machines.remove(machine)
 if machine in ["fan", "pump", "slider", "valve"]:
     dev_section = [0, 2, 4, 6]
+    dev_section = [0, 1, 2, 3, 4, 5, 6]
 elif machine == "ToyCar":
     dev_section = [0, 1, 2, 3]
+    dev_section = [1, 2, 3, 4, 5, 6, 7]
 elif machine == "ToyConveyor":
     dev_section = [0, 1, 2]
+    dev_section = [1, 2, 3, 4, 5, 6]
+
 eval_df = pd.read_csv(
     os.path.join(checkpoint_dir, "checkpoint-100epochs_eval_mean.csv")
 )
@@ -306,6 +327,7 @@ dcase_train_df["fid"] = dcase_train_df["path"].map(
 dcase_train_df["section"] = dcase_train_df["path"].map(lambda x: int(x.split("_")[-2]))
 dcase_train_df["machine"] = dcase_train_df["path"].map(lambda x: x.split("/")[2])
 dcase_train_df = dcase_train_df[dcase_train_df["fid"] < n_plot]
+dcase_train_df["label"] = None
 dcase_valid_df = pd.read_csv(
     os.path.join(checkpoint_dir, "checkpoint-100epochs_dcase_valid_mean.csv")
 )
@@ -321,31 +343,36 @@ for sec in dev_section:
     eval_df.loc[
         (eval_df["section"] == sec) & (eval_df["is_normal"] == 1),
         "label",
-    ] = f"eval_normal_{sec}"
+    ] = f"normal_{sec}"
     eval_df.loc[
         (eval_df["section"] == sec) & (eval_df["is_normal"] == 0),
         "label",
-    ] = f"eval_anomaly_{sec}"
-    idx = (dcase_train_df["section"] == sec) & (dcase_train_df["machine"] == machine)
-    dcase_train_df.loc[
-        idx,
-        "label",
-    ] = f"train_normal_{sec}"
+    ] = f"anomaly_{sec}"
+    if use_train:
+        idx = (dcase_train_df["section"] == sec) & (
+            dcase_train_df["machine"] == machine
+        )
+        dcase_train_df.loc[
+            idx,
+            "label",
+        ] = f"train_normal_{sec}"
     for om in other_machines:
         dcase_valid_df.loc[
             (dcase_valid_df["section"] == sec)
             & (dcase_valid_df["machine"] == om)
             & (dcase_valid_df["fid"] < n_plot // 15),
             "label",
-        ] = "eval_pseudo-anomaly"
-        dcase_train_df.loc[
-            (dcase_train_df["section"] == sec)
-            & (dcase_train_df["machine"] == om)
-            & (dcase_train_df["fid"] < n_plot // 15),
-            "label",
-        ] = "train_pseudo-anomaly"
+        ] = "pseudo-anomaly"
+        if use_train:
+            dcase_train_df.loc[
+                (dcase_train_df["section"] == sec)
+                & (dcase_train_df["machine"] == om)
+                & (dcase_train_df["fid"] < n_plot // 15),
+                "label",
+            ] = "train_pseudo-anomaly"
 embed_cols = ["label"] + [f"e{i}" for i in range(128)]
 # %%
+algorithm = "umap"
 use_df = pd.concat(
     [
         eval_df[embed_cols],
@@ -358,16 +385,21 @@ use_df = pd.concat(
 )
 use_df = use_df[~use_df["label"].isna()]
 embed = use_df[embed_cols[1:]].values
-tsne = TSNE(n_components=2, random_state=2022, perplexity=10, n_iter=1000)
-X_embedded = tsne.fit_transform(embed)
+if algorithm == "tsne":
+    tsne = TSNE(n_components=2, random_state=2022, perplexity=10, n_iter=1000)
+    X_embedded = tsne.fit_transform(embed)
+elif algorithm == "umap":
+    mapper = umap.UMAP(densmap=True, n_neighbors=5, random_state=2022)
+    X_embedded = mapper.fit_transform(embed)
+
 # %%
 label_list = list(use_df["label"].unique())
 plt.figure(figsize=(20, 20))
 for label in label_list:
     idx = use_df["label"] == label
-    if "eval_normal" in label:
+    if "normal" in label:
         marker = "o"
-    elif "eval_anomaly" in label:
+    elif "anomaly_" in label:
         marker = "x"
     elif "train_normal" in label:
         marker = "o"

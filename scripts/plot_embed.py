@@ -12,12 +12,25 @@ from sklearn.neighbors import NearestNeighbors
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 # %%
 machine = machines[1]
+other_machines = machines.copy()
+other_machines.remove(machine)
+if machine in ["fan", "pump", "slider", "valve"]:
+    dev_section = [0, 2, 4, 6]
+    dev_section = [0, 1, 2, 3, 4, 5, 6]
+elif machine == "ToyCar":
+    dev_section = [0, 1, 2, 3]
+    dev_section = [1, 2, 3, 4, 5, 6, 7]
+elif machine == "ToyConveyor":
+    dev_section = [0, 1, 2]
+    dev_section = [1, 2, 3, 4, 5, 6]
+# for machine in machines:
 use_train = False
 checkpoint_dir = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs"
-col = "pred_machine"
+col = "pred_section_max"
 agg_df = pd.read_csv(
     os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
 )
+agg_df["pred_section_max"] = agg_df[[f"pred_section{i}" for i in dev_section]].max(1)
 n_plot = 100
 h_agg_df = (
     agg_df[sigmoid(agg_df[col]) > 0.999]
@@ -37,17 +50,6 @@ l_agg_df["label"] = "low"
 # 2. 異なるマシンタイプも色を変える（1色）
 # 3. 外れ値も色を変える（閾値ごとに色を変える 0, 0.5, 0.999）
 
-other_machines = machines.copy()
-other_machines.remove(machine)
-if machine in ["fan", "pump", "slider", "valve"]:
-    dev_section = [0, 2, 4, 6]
-    dev_section = [0, 1, 2, 3, 4, 5, 6]
-elif machine == "ToyCar":
-    dev_section = [0, 1, 2, 3]
-    dev_section = [1, 2, 3, 4, 5, 6, 7]
-elif machine == "ToyConveyor":
-    dev_section = [0, 1, 2]
-    dev_section = [1, 2, 3, 4, 5, 6]
 
 eval_df = pd.read_csv(
     os.path.join(checkpoint_dir, "checkpoint-100epochs_eval_mean.csv")
@@ -108,7 +110,7 @@ for sec in dev_section:
                 "label",
             ] = "train_pseudo-anomaly"
 embed_cols = ["label"] + [f"e{i}" for i in range(128)]
-# %%
+
 algorithm = "umap"
 use_df = pd.concat(
     [
@@ -122,7 +124,9 @@ use_df = pd.concat(
 )
 use_df = use_df[~use_df["label"].isna()]
 embed = use_df[embed_cols[1:]].values
-n_neighbors = 15
+# for n_neighbors in [10, 15, 20, 25]:
+# %%
+n_neighbors = 10
 if algorithm == "tsne":
     tsne = TSNE(n_components=2, random_state=2022, perplexity=n_neighbors, n_iter=1000)
     X_embedded = tsne.fit_transform(embed)
@@ -130,17 +134,15 @@ elif algorithm == "umap":
     mapper = umap.UMAP(densmap=True, n_neighbors=n_neighbors, random_state=2022)
     X_embedded = mapper.fit_transform(embed)
 
-# %%
 neigh = NearestNeighbors(n_neighbors=5)
 neigh.fit(X_embedded)
 d = neigh.kneighbors(X_embedded)[0].sum(-1)
 label_list = sorted(list(use_df["label"].unique()))
 cmap_names = ["tab20", "tab20_r", "tab20b", "tab20b_r", "tab20c", "tab20c_r"]
 cm = plt.cm.get_cmap(cmap_names[0])
-plt.figure(figsize=(20, 20))
+plt.figure(figsize=(8, 6))
 for label in label_list:
     idx = (use_df["label"] == label) & (d < np.percentile(d, 99.5))
-    
     id_ = label.split("_")[-1]
     if id_ in ["0", "1", "2", "3", "4", "5", "6", "7"]:
         rgb = cm.colors[int(id_)]
@@ -163,11 +165,18 @@ for label in label_list:
     else:
         marker = ","
     plt.scatter(
-        X_embedded[idx, 0], X_embedded[idx, 1], label=id_, marker=marker, color=rgb
+        X_embedded[idx, 0],
+        X_embedded[idx, 1],
+        label=id_,
+        marker=marker,
+        color=rgb,
+        alpha=0.5,
+        # edgecolors=rgb,
+        # linewidths=2,
     )
-plt.legend()
-plt.title(f"{machine}_{algorithm}{n_neighbors}")
+plt.legend(fontsize=10)
+# plt.title(f"{machine}_{algorithm}{n_neighbors}")
 plt.tight_layout()
-plt.savefig(f"exp/fig/v000_{machine}_{algorithm}{n_neighbors}.png")
+# plt.savefig(f"exp/fig/v000_{machine}_{algorithm}{n_neighbors}.png")
 
 # %%
