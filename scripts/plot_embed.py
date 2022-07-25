@@ -99,17 +99,19 @@ for sec in dev_section:
         dcase_valid_df.loc[
             (dcase_valid_df["section"] == sec)
             & (dcase_valid_df["machine"] == om)
-            & (dcase_valid_df["fid"] < n_plot // 15),
+            & (dcase_valid_df["fid"] < n_plot // 3),
             "label",
         ] = "pseudo-anomaly"
         if use_train:
             dcase_train_df.loc[
                 (dcase_train_df["section"] == sec)
                 & (dcase_train_df["machine"] == om)
-                & (dcase_train_df["fid"] < n_plot // 15),
+                & (dcase_train_df["fid"] < n_plot // 3),
                 "label",
             ] = "train_pseudo-anomaly"
 embed_cols = ["label"] + [f"e{i}" for i in range(128)]
+zeros = ["zero"] + [0 for _ in range(128)]
+zero_df = pd.DataFrame([zeros], columns=embed_cols)
 
 algorithm = "umap"
 use_df = pd.concat(
@@ -120,6 +122,7 @@ use_df = pd.concat(
         h_agg_df[embed_cols],
         m_agg_df[embed_cols],
         l_agg_df[embed_cols],
+        zero_df,
     ]
 )
 use_df = use_df[~use_df["label"].isna()]
@@ -140,7 +143,7 @@ d = neigh.kneighbors(X_embedded)[0].sum(-1)
 label_list = sorted(list(use_df["label"].unique()))
 cmap_names = ["tab20", "tab20_r", "tab20b", "tab20b_r", "tab20c", "tab20c_r"]
 cm = plt.cm.get_cmap(cmap_names[0])
-plt.figure(figsize=(8, 6))
+plt.figure(figsize=(16, 12))
 for label in label_list:
     idx = (use_df["label"] == label) & (d < np.percentile(d, 99.5))
     id_ = label.split("_")[-1]
@@ -155,6 +158,9 @@ for label in label_list:
         rgb = cm.colors[10]
     elif id_ == "low":
         rgb = cm.colors[11]
+    elif id_ == "zero":
+        rgb = cm.colors[13]
+    s = 30
     if "normal" in label:
         marker = "o"
     elif "anomaly_" in label:
@@ -162,6 +168,9 @@ for label in label_list:
         id_ = None
     elif "train_normal" in label:
         marker = "o"
+    elif "zero" == label:
+        marker = "D"
+        s = 200
     else:
         marker = ","
     plt.scatter(
@@ -170,11 +179,10 @@ for label in label_list:
         label=id_,
         marker=marker,
         color=rgb,
-        alpha=0.5,
-        # edgecolors=rgb,
-        # linewidths=2,
+        alpha=0.8,
+        s=s,
     )
-plt.legend(fontsize=10)
+plt.legend(fontsize=20)
 # plt.title(f"{machine}_{algorithm}{n_neighbors}")
 plt.tight_layout()
 # plt.savefig(f"exp/fig/v000_{machine}_{algorithm}{n_neighbors}.png")
