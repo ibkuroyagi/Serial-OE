@@ -63,9 +63,7 @@ if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then
         feature="_dev${feature}"
     fi
     tag=${no}_${valid_ratio}
-    if [ ${seed} -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
-        tag+="_seed${seed}"
-    fi
+
     if [ ${audioset_pow} -gt 0 ]; then
         tag+=_p${audioset_pow}
     fi
@@ -74,6 +72,9 @@ if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then
     fi
     if "${use_idmt}"; then
         tag+="_idmt"
+    fi
+    if [ ${seed} -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
+        tag+="_seed${seed}"
     fi
     if [ ${n_anomaly} -ge 0 ]; then
         tag+="_anomaly${n_anomaly}_max${max_anomaly_pow}_seed${seed}"

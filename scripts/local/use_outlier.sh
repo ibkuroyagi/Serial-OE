@@ -17,11 +17,13 @@ resume=""
 epochs=100
 feature=_embed
 valid_ratio=0.15
+seed=0
 # use outlier related
 threshold=0.999
 col_name=outlier
 # anomaly related
-seed=0
+max_anomaly_pow=6
+n_anomaly=-1 # -1: eval.scp, 0>=: eval_max*_seed*.scp,
 
 log() {
     local fname=${BASH_SOURCE[1]##*/}
@@ -33,7 +35,12 @@ set -euo pipefail
 
 end_str="_${valid_ratio}"
 conf="conf/tuning/asd_model.${no}.yaml"
-tag="${no}${end_str}_seed${seed}"
+tag="${no}${end_str}"
+if [ "${n_anomaly}" -ge 0 ]; then
+    log "For simple ASD model's seed : ${seed}."
+    tag+="_anomaly${n_anomaly}_max${max_anomaly_pow}"
+fi
+tag+="_seed${seed}"
 outdir="exp/${pos_machine}/${tag}/${checkpoint}"
 
 if [ "${pos_machine}" = "fan" ]; then
@@ -109,4 +116,23 @@ if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
         --max_anomaly_pow "6" \
         --outlier_scps "${outlier_scps}" \
         --seed "${seed}"
+fi
+if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
+    outdir="exp/${pos_machine}/${no}_${col_name}${threshold}${end_str}_seed${seed}/${checkpoint}"
+    log "Stage 4: Extract outlier embedding start. See the progress via ${outdir}/outlier_embed_${pos_machine}_${no}_${col_name}${threshold}${end_str}_seed${seed}.log."
+    outlier_scps="${dumpdir}/idmt/idmt.scp ${dumpdir}/uav/uav.scp ${dumpdir}/audioset/balanced_train_segments/audioset.scp"
+    # shellcheck disable=SC2086,SC2154
+    ${cuda_cmd} --gpu 1 "${outdir}/outlier_embed_${pos_machine}_${no}_${col_name}${threshold}${end_str}_seed${seed}.log" \
+        python local/get_outlier_embed.py \
+        --train_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/train${end_str}.scp" \
+        --train_neg_machine_scps ${train_neg_machine_scps} \
+        --valid_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/valid${end_str}.scp" \
+        --valid_neg_machine_scps ${valid_neg_machine_scps} \
+        --pos_machine "${pos_machine}" \
+        --outlier_scps ${outlier_scps} \
+        --statistic_path "${dumpdir}/dev/${pos_machine}/train/statistic.json" \
+        --checkpoint "${outdir}/${checkpoint}.pkl" \
+        --config "${conf}" \
+        --verbose "1"
+    log "Successfully finished extracting embedding."
 fi

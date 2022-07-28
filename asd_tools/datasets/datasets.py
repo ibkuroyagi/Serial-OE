@@ -36,7 +36,9 @@ class OutlierWaveASDDataset(Dataset):
         if len(outlier_scps) != 0:
             for outlier_scp in outlier_scps:
                 with open(outlier_scp, "r") as f:
-                    self.outlier_files += [s.strip() for s in f.readlines()]
+                    self.outlier_files += [
+                        s.strip() for s in f.readlines() if s.strip().endswith(".h5")
+                    ]
             self.outlier_files.sort()
 
         self.wav_files = (

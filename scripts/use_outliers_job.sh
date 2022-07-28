@@ -2,15 +2,17 @@
 
 stage=1          # job
 start_stage=3    # scp
+stop_stage=4     # scp
 run_stage=3      # training
 col_name=section # outlier or section
 threshold=1
 seed=0
-
+no=audioset_v000
+n_anomaly=-1
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 set -euo pipefail
-no=audioset_v000
+
 valid_ratio=0.15
 epochs="100"
 machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
@@ -20,17 +22,19 @@ machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
 if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
     for machine in "${machines[@]}"; do
         echo "Start model training ${machine}/${no}_${col_name}${threshold}_${valid_ratio}."
-        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}_${col_name}${threshold}_seed${seed}_${valid_ratio}" ./local/use_outlier.sh \
+        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}_${col_name}${threshold}_seed${seed}_${valid_ratio}_n${n_anomaly}" ./local/use_outlier.sh \
             --stage "${start_stage}" \
             --run_stage "${run_stage}" \
-            --stop_stage "3" \
+            --stop_stage "${stop_stage}" \
             --pos_machine "${machine}" \
             --no "${no}" \
             --epochs "${epochs}" \
             --valid_ratio "${valid_ratio}" \
             --col_name "${col_name}" \
             --threshold "${threshold}" \
-            --seed "${seed}"
+            --seed "${seed}" \
+            --max_anomaly_pow "6" \
+            --n_anomaly "${n_anomaly}"
     done
 fi
 

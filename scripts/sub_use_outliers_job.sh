@@ -7,6 +7,7 @@ col_name=section # outlier or section
 threshold=1
 seed=0
 machine=fan
+n_anomaly=-1
 # ("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
 
 # shellcheck disable=SC1091
@@ -28,7 +29,9 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
         --valid_ratio "${valid_ratio}" \
         --col_name "${col_name}" \
         --threshold "${threshold}" \
-        --seed "${seed}"
+        --seed "${seed}" \
+        --max_anomaly_pow "6" \
+        --n_anomaly "${n_anomaly}"
 fi
 
 if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then

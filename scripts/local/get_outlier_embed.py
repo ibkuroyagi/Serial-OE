@@ -235,12 +235,7 @@ def main():
         in_sample_norm=config.get("in_sample_norm", False),
     )
     logging.info(f"The number of outlier files = {len(outlier_dataset)}.")
-    audioset_dataset = OutlierDataset(
-        outlier_scps=args.audioset_scps,
-        statistic_path=args.statistic_path,
-        in_sample_norm=config.get("in_sample_norm", False),
-    )
-    logging.info(f"The number of audioset files = {len(audioset_dataset)}.")
+
     collator = WaveEvalCollator(
         sf=config["sf"],
         sec=config["sec"],
@@ -268,13 +263,20 @@ def main():
         num_workers=config["num_workers"],
         pin_memory=config["pin_memory"],
     )
-    audioset_loader = DataLoader(
-        audioset_dataset,
-        batch_size=config["batch_size"] * 8,
-        shuffle=False,
-        num_workers=config["num_workers"],
-        pin_memory=config["pin_memory"],
-    )
+    if len(args.audioset_scps) > 0:
+        audioset_dataset = OutlierDataset(
+            outlier_scps=args.audioset_scps,
+            statistic_path=args.statistic_path,
+            in_sample_norm=config.get("in_sample_norm", False),
+        )
+        logging.info(f"The number of audioset files = {len(audioset_dataset)}.")
+        audioset_loader = DataLoader(
+            audioset_dataset,
+            batch_size=config["batch_size"] * 8,
+            shuffle=False,
+            num_workers=config["num_workers"],
+            pin_memory=config["pin_memory"],
+        )
     model_class = getattr(asd_tools.models, config["model_type"])
     model = model_class(**config["model_params"])
     state_dict = torch.load(args.checkpoint, map_location="cpu")
@@ -306,12 +308,14 @@ def main():
         "dcase_valid": config["n_split"],
         "audioset": 5,
     }
-    for mode, loader in {
+    loader_dict = {
         "dcase_train": train_loader,
         "dcase_valid": valid_loader,
         "outlier": outlier_loader,
-        "audioset": audioset_loader,
-    }.items():
+    }
+    if len(args.audioset_scps) > 0:
+        loader_dict["audioset"] = audioset_loader
+    for mode, loader in loader_dict.items():
         csv_path = args.checkpoint.replace(".pkl", f"_{mode}_mean.csv")
         with open(csv_path, "w", newline="") as g:
             writer = csv.writer(g)

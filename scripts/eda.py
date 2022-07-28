@@ -1,4 +1,5 @@
 # %%
+from genericpath import isfile
 import pandas as pd
 import numpy as np
 import os
@@ -230,53 +231,56 @@ for machine in machines:
     plt.title(f"{machine}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.1f}")
     plt.tight_layout()
 # %%
-machine = machines[1]
-checkpoint_dir = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs"
-col = "pred_machine"
-# agg_df = pd.read_csv(
-#     os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
-# )
-agg_df = pd.concat(
-    [
-        pd.read_csv(
-            os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
-            usecols=["path", col],
-        ),
-        pd.read_csv(
-            os.path.join(checkpoint_dir, "checkpoint-100epochs_audioset_mean.csv"),
-            usecols=["path", col],
-        ),
-    ]
-)
-# %%
-sig = sigmoid(agg_df[col])
-for threshold in [
-    0,
-    # 0.05,
-    0.1,
-    0.2,
-    0.3,
-    0.4,
-    0.5,
-    0.6,
-    0.7,
-    0.8,
-    0.9,
-    0.95,
-    0.99,
-    0.999,
-    # 0.9995,
-    # 0.9999,
-    # 0.99995,
-    # 0.99999,
-    # 0.999995,
-    1,
-]:
-    use_idx = sig > threshold
-    use_cnt = use_idx.sum()
-    N = len(agg_df)
-    title = f"{machine}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.2f}[%], {threshold}"
-    print(title)
+# machine = machines[1]
+for machine in machines:
+    checkpoint_dir = f"exp/{machine}/audioset_v000_0.15/checkpoint-100epochs"
+    col = "pred_machine"
+    # agg_df = pd.read_csv(
+    #     os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
+    # )
+    agg_df = pd.concat(
+        [
+            pd.read_csv(
+                os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
+                usecols=["path", col],
+            ),
+            pd.read_csv(
+                os.path.join(checkpoint_dir, "checkpoint-100epochs_audioset_mean.csv"),
+                usecols=["path", col],
+            ),
+        ]
+    )
+
+    # sig = sigmoid(agg_df[col])
+    sig = agg_df[col].values
+    for threshold in [
+        0,
+        0.05,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        # 0.95,
+        # 0.99,
+        # 0.999,
+        # 0.9995,
+        # 0.9999,
+        # 0.99995,
+        # 0.99999,
+        # 0.999995,
+        1,
+    ]:
+        # use_idx = sig < threshold
+        use_idx = sig < np.percentile(sig, threshold * 100)
+        use_cnt = use_idx.sum()
+        N = len(agg_df)
+        title = f"{machine}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.2f}[%], {threshold}"
+        print(title)
 # %%
 machine = machines[1]
 use_train = False
@@ -407,5 +411,46 @@ for label in label_list:
         marker = ","
     plt.scatter(X_embedded[idx, 0], X_embedded[idx, 1], label=label, marker=marker)
 plt.legend()
+
+# %%
+# 実行スクリプトの生成
+col_names = ["section", "outlier"]
+# col_names = ["section"]
+thresholds = [
+    0,
+    0.05,
+    0.1,
+    0.2,
+    0.3,
+    0.4,
+    0.5,
+    0.6,
+    0.7,
+    0.8,
+    0.9,
+    0.95,
+    0.99,
+    0.999,
+    0.9995,
+    0.9999,
+    1,
+]
+# thresholds = [0]
+seeds = [0, 1, 2, 3, 4]
+# seeds = [2]
+for col_name in col_names:
+    for seed in seeds:
+        for threshold in thresholds:
+            for machine in machines:
+                if not os.path.isfile(
+                    f"exp/{machine}/audioset_v000_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv"
+                ):
+                    run_stage = 3
+                    if os.path.isfile(
+                        f"exp/{machine}/audioset_v000_outlier{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs.pkl"
+                    ):
+                        run_stage = 4
+                    job = f"./sub_use_outliers_job.sh --start_stage 3 --run_stage {run_stage} --threshold {threshold} --col_name {col_name} --seed {seed} --machine {machine}"
+                    print(job)
 
 # %%
