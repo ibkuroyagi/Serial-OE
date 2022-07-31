@@ -1,12 +1,12 @@
 #!/bin/bash
 
 stage=1          # job
-start_stage=3    # scp
+start_stage=2    # scp
 run_stage=3      # training
-col_name=section # outlier or section
-threshold=1
+col_name=machine # outlier or section
+threshold=0
 seed=0
-machine=fan
+machine=pump
 n_anomaly=-1
 # ("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
 
@@ -22,7 +22,7 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
     sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}_${col_name}${threshold}_seed${seed}_${valid_ratio}" ./local/use_outlier.sh \
         --stage "${start_stage}" \
         --run_stage "${run_stage}" \
-        --stop_stage "3" \
+        --stop_stage "4" \
         --pos_machine "${machine}" \
         --no "${no}" \
         --epochs "${epochs}" \

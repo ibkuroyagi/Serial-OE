@@ -116,7 +116,8 @@ def main():
                 for path in path_list:
                     g.write(f"{path}\n")
             logging.info(f"Outlier scp file is saved at {outlier_scp_path}.")
-
+    col = "pred_machine"
+    sig = agg_df[col].values.astype(float)
     for threshold in [
         0,
         0.001,
@@ -137,7 +138,7 @@ def main():
         use_idx = sig < np.percentile(sig, threshold * 100)
         use_cnt = use_idx.sum()
         N = len(agg_df)
-        title = f"{args.pos_machine}:{names[ii]}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.2f}[%], {threshold}"
+        title = f"{args.pos_machine}:machine, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.2f}[%], {threshold}"
         logging.info(title)
         path_list = list(agg_df.loc[use_idx, "path"])
         outlier_scp_path = os.path.join(

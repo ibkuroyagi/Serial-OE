@@ -1,42 +1,25 @@
 #!/bin/bash
 
-# for col_name in section outlier; do
-#     for seed in 0 1 2 3 4; do
-#         ./use_outliers_job.sh --start_stage 1 --run_stage 3 --threshold "0" --col_name "${col_name}" --seed "${seed}"
-#         sleep 1200
-#     done
-# done
-col_name=outlier
-for seed in 0 1 2 3 4; do
-    ./use_outliers_job.sh --start_stage 3 --run_stage 3 --threshold "0" --col_name "${col_name}" --seed "${seed}"
-    sleep 1200
+# shellcheck disable=SC1091
+. utils/original_funcs.sh || exit 1
+available_gpus=15
+no=audioset_v000
+seed=1
+col_name=machine
+for threshold in 0.001 0.01 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1; do
+    slurm_gpu_scheduler "${available_gpus}"
+    ./use_outliers_job.sh --start_stage 3 --stop_stage 3 --threshold "${threshold}" --col_name "${col_name}" --seed "${seed}" --no "${no}"
 done
-seed=0
-for col_name in section outlier; do
-    for threshold in 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.95 0.99 0.999 0.9995 0.9999 1; do
-        ./use_outliers_job.sh --start_stage 3 --run_stage 3 --threshold "${threshold}" --col_name "${col_name}" --seed "${seed}"
-        sleep 1800
-    done
+for threshold in 0 0.001 0.005 0.01 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1; do
+    sbatch ./use_outliers_job.sh --stage 2 --threshold "${threshold}" --col_name "${col_name}" --seed "${seed}" --no "${no}"
 done
 
-for col_name in section outlier; do
-    for seed in 1 2 3 4; do
-        for threshold in 0 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.95 0.99 0.999 0.9995 0.9999 1; do
-            ./use_outliers_job.sh --start_stage 3 --run_stage 3 --threshold "${threshold}" --col_name "${col_name}" --seed "${seed}"
-            sleep 1800
-        done
+for seed in 2 3 4; do
+    for threshold in 0 0.001 0.005 0.01 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1; do
+        slurm_gpu_scheduler "${available_gpus}"
+        ./use_outliers_job.sh --start_stage 3 --stop_stage 3 --threshold "${threshold}" --col_name "${col_name}" --seed "${seed}" --no "${no}"
+    done
+    for threshold in 0 0.001 0.005 0.01 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1; do
+        sbatch ./use_outliers_job.sh --stage 2 --threshold "${threshold}" --col_name "${col_name}" --seed "${seed}" --no "${no}"
     done
 done
-
-for col_name in section outlier; do
-    for seed in 0 1 2 3 4; do
-        for threshold in 0 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.95 0.99 0.999 0.9995 0.9999 1; do
-            ./use_outliers_job.sh --stage 2 --threshold "${threshold}" --col_name "${col_name}" --seed "${seed}"
-        done
-    done
-done
-
-# sleep 7200
-# for threshold in 0 0.05 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 0.95 0.99 0.999 0.9995 0.9999 0.99995 0.99999 0.999995 1; do
-#     sbatch ./use_outliers_job.sh --start_stage 3 --threshold "${threshold}" --stage 2 --col_name "section"
-# done
