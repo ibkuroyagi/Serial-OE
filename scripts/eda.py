@@ -1,5 +1,4 @@
 # %%
-from genericpath import isfile
 import pandas as pd
 import numpy as np
 import os
@@ -415,9 +414,31 @@ plt.legend()
 # %%
 # 実行スクリプトの生成
 col_names = ["section", "outlier"]
-# col_names = ["section"]
+# thresholds = [
+#     0,
+#     0.05,
+#     0.1,
+#     0.2,
+#     0.3,
+#     0.4,
+#     0.5,
+#     0.6,
+#     0.7,
+#     0.8,
+#     0.9,
+#     0.95,
+#     0.99,
+#     0.999,
+#     0.9995,
+#     0.9999,
+#     1,
+# ]
+col_names = ["machine"]
 thresholds = [
     0,
+    0.001,
+    0.005,
+    0.01,
     0.05,
     0.1,
     0.2,
@@ -428,16 +449,11 @@ thresholds = [
     0.7,
     0.8,
     0.9,
-    0.95,
-    0.99,
-    0.999,
-    0.9995,
-    0.9999,
     1,
 ]
 # thresholds = [0]
-seeds = [0, 1, 2, 3, 4]
-# seeds = [2]
+# seeds = [0, 1, 2, 3, 4]
+seeds = [0, 1, 2, 3]
 for col_name in col_names:
     for seed in seeds:
         for threshold in thresholds:
@@ -447,7 +463,7 @@ for col_name in col_names:
                 ):
                     run_stage = 3
                     if os.path.isfile(
-                        f"exp/{machine}/audioset_v000_outlier{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs.pkl"
+                        f"exp/{machine}/audioset_v000_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs.pkl"
                     ):
                         run_stage = 4
                     job = f"./sub_use_outliers_job.sh --start_stage 3 --run_stage {run_stage} --threshold {threshold} --col_name {col_name} --seed {seed} --machine {machine}"

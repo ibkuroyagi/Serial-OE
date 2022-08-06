@@ -2,7 +2,7 @@
 
 stage=1
 start_stage=3
-no=audioset_v000
+no=audioset_v020
 valid_ratio=0.15
 # outlier related
 audioset_pow=0
@@ -11,14 +11,16 @@ use_idmt=false
 # anomaly related
 max_anomaly_pow=6
 n_anomaly=-1
-seed=5
+seed=0
 # inference related
 use_dev=false
 feature=_embed
 use_10sec=false
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
-
+# shellcheck disable=SC1091
+. utils/original_funcs.sh || exit 1
+available_gpus=24
 epochs="100"
 
 set -euo pipefail
@@ -33,7 +35,8 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
         if "${use_dev}"; then
             inlier_scp="dump/dev/${machine}/train/dev.scp"
         fi
-        echo "Start model training ${machine}/${no}."
+        # slurm_gpu_scheduler "${available_gpus}"
+        log "Start model training ${machine}/${no}."
         sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}" ./run.sh \
             --stage "${start_stage}" \
             --stop_stage "5" \

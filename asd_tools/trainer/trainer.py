@@ -131,8 +131,6 @@ class OECTrainer(object):
 
     def _train_step(self, batch):
         """Train model one step."""
-        # for k, v in batch.items():
-        #     logging.info(f"{k}:{v.shape},{v}")
         machine = batch["machine"].to(self.device)
         section_idx = machine.bool()
         machine = machine.unsqueeze(1)
@@ -158,6 +156,9 @@ class OECTrainer(object):
                     machine,
                     section,
                     alpha=self.config["mixup_alpha"],
+                    use_neg_section_as_zero=self.config.get(
+                        "use_neg_section_as_zero", False
+                    ),
                 )
         y_ = self.model(wave)
         machine_loss = (

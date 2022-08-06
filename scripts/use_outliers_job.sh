@@ -9,6 +9,7 @@ threshold=1
 seed=0
 no=audioset_v000
 n_anomaly=-1
+feature=_embed
 # shellcheck disable=SC1091
 . utils/parse_options.sh || exit 1
 set -euo pipefail
@@ -22,7 +23,7 @@ machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
 if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
     for machine in "${machines[@]}"; do
         echo "Start model training ${machine}/${no}_${col_name}${threshold}_${valid_ratio}."
-        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}_${col_name}${threshold}_seed${seed}_${valid_ratio}_n${n_anomaly}" ./local/use_outlier.sh \
+        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}_${col_name}${threshold}_seed${seed}_${valid_ratio}" ./local/use_outlier.sh \
             --stage "${start_stage}" \
             --run_stage "${run_stage}" \
             --stop_stage "${stop_stage}" \
@@ -34,13 +35,14 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
             --threshold "${threshold}" \
             --seed "${seed}" \
             --max_anomaly_pow "6" \
-            --n_anomaly "${n_anomaly}"
+            --n_anomaly "${n_anomaly}" \
+            --feature "${feature}"
     done
 fi
 
 if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then
     ./local/scoring.sh \
         --no "${no}_${col_name}${threshold}_${valid_ratio}_seed${seed}" \
-        --feature "_embed" \
+        --feature "${feature}" \
         --epochs "${epochs}"
 fi
