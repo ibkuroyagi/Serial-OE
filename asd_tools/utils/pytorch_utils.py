@@ -23,7 +23,7 @@ def mixup_for_outlier(
         f"lam*Y:{(lam*Y).shape}, (1 - lam) * Y[perm]:{((1 - lam) * Y[perm]).shape}"
     )
     mixed_Y = lam * Y + (1 - lam) * Y[perm]
-    section[0 < Y.squeeze(1)] = 0
+    section[0 == Y.squeeze(1)] = 0
     mixed_section = lam * section + (1 - lam) * section[perm]
     if use_neg_section_as_zero:
         section_idx = torch.ones(batch_size, dtype=torch.bool).to(X.device)

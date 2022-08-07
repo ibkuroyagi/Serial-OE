@@ -35,7 +35,7 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
         if "${use_dev}"; then
             inlier_scp="dump/dev/${machine}/train/dev.scp"
         fi
-        # slurm_gpu_scheduler "${available_gpus}"
+        slurm_gpu_scheduler "${available_gpus}"
         log "Start model training ${machine}/${no}."
         sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}" ./run.sh \
             --stage "${start_stage}" \
