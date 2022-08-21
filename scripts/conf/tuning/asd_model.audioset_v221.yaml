@@ -27,22 +27,21 @@ section_loss_type: BCEWithLogitsLoss
 section_loss_params:
   reduction: mean
 
-section_loss_lambda: 10.0
-use_neg_section_as_zero: true
+machine_loss_lambda: 0.0
+section_loss_lambda: 1.0
+use_neg_section_as_zero: false
 # mixup related
 mixup_alpha: 0.2
 ###########################################################
 #                  DATA LOADER SETTING                    #
 ###########################################################
 accum_grads: 1
-
-n_pos: 64 # Batch size.
-n_neg: 64
+n_pos: 128 # Batch size.
+n_neg: 0
 anomaly_as_neg: false
 pin_memory: true # Whether to pin memory in Pytorch DataLoader.
 num_workers: 0 # Number of workers in Pytorch DataLoader.
 allow_cache: true # Whether to allow cache in dataset. If true, it requires cpu memory.
-
 ###########################################################
 #             OPTIMIZER & SCHEDULER SETTING               #
 ###########################################################

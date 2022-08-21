@@ -116,6 +116,37 @@ def main():
                 for path in path_list:
                     g.write(f"{path}\n")
             logging.info(f"Outlier scp file is saved at {outlier_scp_path}.")
+        for threshold in [
+            0,
+            0.0001,
+            0.0005,
+            0.001,
+            0.005,
+            0.01,
+            0.05,
+            0.1,
+            0.3,
+            0.5,
+            0.7,
+            1,
+        ]:
+            use_idx = sig < threshold
+            use_cnt = use_idx.sum()
+            N = len(agg_df)
+            title = f"{args.pos_machine}:{names[ii]}, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.2f}[%], {threshold}"
+            logging.info(title)
+            path_list = list(agg_df.loc[use_idx, "path"])
+            outlier_scp_path = os.path.join(
+                args.outlier_scp_save_dir, f"{names[ii]}2_{threshold}.scp"
+            )
+            with codecs.open(
+                outlier_scp_path,
+                "w",
+                encoding="utf-8",
+            ) as g:
+                for path in path_list:
+                    g.write(f"{path}\n")
+            logging.info(f"Outlier scp file is saved at {outlier_scp_path}.")
     col = "pred_machine"
     sig = agg_df[col].values.astype(float)
     for threshold in [
@@ -143,6 +174,40 @@ def main():
         path_list = list(agg_df.loc[use_idx, "path"])
         outlier_scp_path = os.path.join(
             args.outlier_scp_save_dir, f"machine_{threshold}.scp"
+        )
+        with codecs.open(
+            outlier_scp_path,
+            "w",
+            encoding="utf-8",
+        ) as g:
+            for path in path_list:
+                g.write(f"{path}\n")
+        logging.info(f"Outlier scp file is saved at {outlier_scp_path}.")
+    for threshold in [
+        0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        0.95,
+        0.99,
+        0.995,
+        0.999,
+        1,
+    ]:
+        use_idx = sig > np.percentile(sig, threshold * 100)
+        use_cnt = use_idx.sum()
+        N = len(agg_df)
+        title = f"{args.pos_machine}:machine2, N={N}, col={col}, cnt={use_cnt}, rate={use_cnt/N*100:.2f}[%], {threshold}"
+        logging.info(title)
+        path_list = list(agg_df.loc[use_idx, "path"])
+        outlier_scp_path = os.path.join(
+            args.outlier_scp_save_dir, f"machine2_{threshold}.scp"
         )
         with codecs.open(
             outlier_scp_path,

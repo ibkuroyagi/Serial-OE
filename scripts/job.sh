@@ -20,7 +20,7 @@ use_10sec=false
 . utils/parse_options.sh || exit 1
 # shellcheck disable=SC1091
 . utils/original_funcs.sh || exit 1
-available_gpus=24
+available_gpus=19
 epochs="100"
 
 set -euo pipefail

@@ -10,8 +10,9 @@ import umap
 from sklearn.neighbors import NearestNeighbors
 
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
+machines = ["ToyConveyor","fan", "pump", "slider", "valve", "ToyCar"]
+
 # %%
-machine = machines[5]
 for machine in machines:
     other_machines = machines.copy()
     other_machines.remove(machine)
@@ -28,36 +29,69 @@ for machine in machines:
     use_train = False
     # no = "v000"
     # for simple ASD model
-    col_name = ""
-    checkpoint_dir = f"exp/{machine}/audioset_{no}_0.15/checkpoint-100epochs"
+    # col_name = ""
+    # checkpoint_dir = f"exp/{machine}/audioset_{no}_0.15/checkpoint-100epochs"
     # for using anomaly data model
     # no = "v200"
     # checkpoint_dir = (
     #     f"exp/{machine}/audioset_{no}_0.15_anomaly32_max6_seed0/checkpoint-100epochs"
     # )
     # for using outlier data model
-    no = "v000"
-
-    for threshold in [
-        0,
-        0.001,
-        0.005,
-        0.01,
-        0.05,
-        0.1,
-        0.2,
-        0.3,
-        0.4,
-        0.5,
-        0.6,
-        0.7,
-        0.8,
-        0.9,
-    ]:
-        col_name = "machine"
-        col = "pred_machine"
+    col_name = "section"
+    col = "pred_machine"
+    if col_name == "machine2":
+        threshold_list = [
+            0,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            0.95,
+            0.99,
+            0.995,
+            0.999,
+        ]
+    elif col_name == "machine":
+        threshold_list = [
+            0,
+            0.001,
+            0.005,
+            0.01,
+            0.05,
+            0.1,
+            0.2,
+            0.3,
+            0.4,
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+        ]
+    elif col_name in ["outlier", "section"]:
+        threshold_list = [
+            0.1,
+            0.3,
+            0.5,
+            0.7,
+            0.9,
+            0.95,
+            0.99,
+            0.995,
+            0.999,
+            0.9995,
+            0.9999,
+        ]
+        if col_name == "section":
+            col = "pred_section_max"
+    no = "v020"
+    for threshold in threshold_list:
         checkpoint_dir = f"exp/{machine}/audioset_{no}_{col_name}{threshold}_0.15_seed0/checkpoint-100epochs"
-        # col = "pred_section_max"
         agg_df = pd.read_csv(
             os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
         )
@@ -248,17 +282,16 @@ for machine in machines:
         dev_section = [0, 1, 2, 3, 4, 5]
     # for machine in machines:
     use_train = False
-    no = "v020"
-    # for simple ASD model
-    col_name = ""
-    checkpoint_dir = f"exp/{machine}/audioset_{no}_0.15_seed0/checkpoint-100epochs"
-    # for using anomaly data model
-    # no = "v200"
-    # checkpoint_dir = (
-    #     f"exp/{machine}/audioset_{no}_0.15_anomaly32_max6_seed0/checkpoint-100epochs"
-    # )
-    col = "pred_machine"
-    # col = "pred_section_max"
+    no = "v219"
+    if no in ["v019"]:
+        # for simple ASD model
+        col_name = ""
+        checkpoint_dir = f"exp/{machine}/audioset_{no}_0.15_seed0/checkpoint-100epochs"
+    elif no in ["v119", "v219"]:
+        # for using anomaly data model
+        checkpoint_dir = f"exp/{machine}/audioset_{no}_0.15_anomaly32_max6_seed0/checkpoint-100epochs"
+        col = "pred_machine"
+        # col = "pred_section_max"
     agg_df = pd.read_csv(
         os.path.join(checkpoint_dir, "checkpoint-100epochs_outlier_mean.csv"),
     )
@@ -427,4 +460,3 @@ for machine in machines:
     plt.tight_layout()
     plt.savefig(f"exp/fig/{no}_{col}_{machine}_{algorithm}{n_neighbors}.png")
 
-# %%

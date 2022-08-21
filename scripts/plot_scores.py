@@ -5,13 +5,13 @@ import os
 import glob
 import matplotlib.pyplot as plt
 from IPython.core.display import display
-
+import subprocess
 
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 
 # %%
 # 異常スコアの変遷をエラーバー(標準誤差,SE)をプロットする
-no = 200
+no = 120
 seed_list = [0, 1, 2, 3, 4]
 n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
 anomaly_score_list = np.zeros((len(machines), len(n_anomaly_list), len(seed_list)))
@@ -101,7 +101,7 @@ plt.savefig(f"exp/fig/{no}_all.png")
 no = 100
 seed_list = [0, 1, 2, 3, 4]
 n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
-ddcsad_score_list = np.zeros((len(machines), len(n_anomaly_list), 4))
+ddcsad_score_list = np.zeros((len(machines), len(n_anomaly_list), len(seed_list)))
 anomaly_score_list = np.zeros((len(machines), len(n_anomaly_list), len(seed_list)))
 for k, seed in enumerate(seed_list):
     for j, n_anomaly in enumerate(n_anomaly_list):
@@ -125,15 +125,14 @@ for k, seed in enumerate(seed_list):
             )
             # print(seed, n_anomaly, machine, auc_pauc)
             anomaly_score_list[i, j, k] = auc_pauc
-            if k < 4:
-                ddcsad_path = f"/home/i_kuroyanagi/workspace2/laboratory/ParallelWaveGAN/egs/dcase2020-task2/greedy/exp2/{machine}/bin/ResNet38Double/v180-anomaly_seed{seed}/scratch/anomaly{n_anomaly}/dev/checkpoint-5000steps/split10frame256_0.5/agg.csv"
-                ddcsad_df = pd.read_csv(ddcsad_path)
-                ddcsad_score_list[i, j, k] = (
-                    ddcsad_df.loc[
-                        0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
-                    ].values.mean()
-                    * 100
-                )
+            ddcsad_path = f"/home/i_kuroyanagi/workspace2/laboratory/ParallelWaveGAN/egs/dcase2020-task2/greedy/exp2/{machine}/bin/ResNet38Double/v180-anomaly_seed{seed}/scratch/anomaly{n_anomaly}/dev/checkpoint-5000steps/split10frame256_0.5/agg.csv"
+            ddcsad_df = pd.read_csv(ddcsad_path)
+            ddcsad_score_list[i, j, k] = (
+                ddcsad_df.loc[
+                    0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
+                ].values.mean()
+                * 100
+            )
 
 # %%
 use_one_fig = False
@@ -223,20 +222,20 @@ plt.tight_layout()
 plt.savefig(f"exp/fig/{no}_w_ddcsad_all.png")
 # %%
 # 外れ値データの使用割合と性能の関係
-no = "000"
+no = "020"
 col_name = "section"
 # col_name = "outlier"
 threshold_list = [
-    0,
-    0.05,
+    # 0,
+    # 0.05,
     0.1,
-    0.2,
+    # 0.2,
     0.3,
-    0.4,
+    # 0.4,
     0.5,
-    0.6,
+    # 0.6,
     0.7,
-    0.8,
+    # 0.8,
     0.9,
     0.95,
     0.99,
@@ -330,10 +329,10 @@ plt.savefig(f"exp/fig/{no}_all.png")
 # %%
 # seed with outlier or section
 feature = "_embed"
-feature = "_prediction"
-no = "000"
-col_name = "machine"
-# col_name = "outlier"
+# feature = "_prediction"
+no = "020"
+# col_name = "machine2"
+col_name = "outlier"
 if col_name == "machine":
     threshold_list = [
         0,
@@ -350,46 +349,64 @@ if col_name == "machine":
         0.7,
         0.8,
         0.9,
-        # 1,
+        1,
+    ]
+elif col_name in ["section2", "outlier2"]:
+    threshold_list = [
+        0,
+        0.0001,
+        0.0005,
+        0.001,
+        0.005,
+        0.01,
+        0.05,
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        1,
     ]
 else:
     threshold_list = [
         0,
         # 0.05,
         0.1,
-        0.2,
+        # 0.2,
         0.3,
-        0.4,
+        # 0.4,
         0.5,
-        0.6,
+        # 0.6,
         0.7,
-        0.8,
+        # 0.8,
         0.9,
         0.95,
         0.99,
+        # 0.995,
         0.999,
+        0.9995,
+        0.9999,
         1,
     ]
 
 seed_list = [0, 1, 2, 3, 4]
-
+seed_list = [0]
 anomaly_score_list = np.zeros((len(machines), len(threshold_list), len(seed_list)))
 outliers_list = np.zeros((len(machines), len(threshold_list), len(seed_list)))
 for k, seed in enumerate(seed_list):
     for j, threshold in enumerate(threshold_list):
         score_path = f"exp/all/audioset_v{no}_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/score{feature}.csv"
         if (
-            (threshold == 0)
-            and (col_name == "machine")
-            or ((threshold == 1) and (col_name in ["outlier", "section"]))
+            ((threshold == 0)
+            and (col_name == ["outlier2", "section2", "machine"]))
+            or ((threshold == 1) and (col_name in ["outlier", "section", "machine2"]))
         ):
             score_path = f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score{feature}.csv"
-        if (
-            (threshold == 1)
-            and (col_name == "machine")
-            or ((threshold == 0) and (col_name in ["outlier", "section"]))
-        ):
-            score_path = f"exp/all/audioset_v{no}_outlier0_0.15_seed{seed}/checkpoint-100epochs/score{feature}.csv"
+        # if (
+        #     (threshold == 1)
+        #     and (col_name == "machine")
+        #     or ((threshold == 0) and (col_name in ["outlier", "section"]))
+        # ):
+        #     score_path = f"exp/all/audioset_v{no}_outlier0_0.15_seed{seed}/checkpoint-100epochs/score{feature}.csv"
         df = pd.read_csv(score_path)
         df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
         # df["valid"] = df["path"].map(lambda x: float(x.split("_")[3].split("/")[0]))
@@ -397,12 +414,7 @@ for k, seed in enumerate(seed_list):
         df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
         df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
         for i, machine in enumerate(machines):
-            outliers_list[i, j, k] = sum(
-                1
-                for line in open(
-                    f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/{col_name}_{threshold}.scp"
-                )
-            )
+            outliers_list[i, j, k] = int(subprocess.check_output(['wc', '-l', f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/{col_name}_{threshold}.scp"]).decode().split(' ')[0])
             sorted_df = df[
                 (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 2)
             ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
@@ -505,5 +517,104 @@ ax.set_title("The number of anomalous data vs. all ASD performance")
 plt.legend()
 plt.tight_layout()
 plt.savefig(f"exp/fig/{col_name}_{no}{feature}_all.png")
+
+# %%
+# %%
+
+no = "020"
+col_name = "section2"
+if col_name in ["outlier", "section"]:
+    threshold_list = [
+        0,
+        0.05,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        0.95,
+        0.99,
+        0.999,
+        0.9995,
+        0.9999,
+        1,
+    ]
+elif col_name in ["outlier2", "section2"]:
+    threshold_list = [
+            0,
+            0.0001,
+            0.0005,
+            0.001,
+            0.005,
+            0.01,
+            0.05,
+            0.1,
+            0.3,
+            0.5,
+            0.7,
+            1,
+        ]
+seed_list = [0, 1, 2, 3, 4]
+# seed_list = [0]
+outliers_list = np.zeros((len(machines), len(threshold_list), len(seed_list)))
+for k, seed in enumerate(seed_list):
+    for j, threshold in enumerate(threshold_list):
+        for i, machine in enumerate(machines):
+            outliers_list[i, j, k] = int(subprocess.check_output(['wc', '-l', f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/{col_name}_{threshold}.scp"]).decode().split(' ')[0])
+use_one_fig = False
+if use_one_fig:
+    fig, ax = plt.subplots(figsize=(10, 4))
+for i, machine in enumerate(machines):
+    x = np.arange(len(threshold_list))
+    if not use_one_fig:
+        fig, ax = plt.subplots(figsize=(10, 4))
+    ln1 = ax.bar(
+        x,
+        outliers_list[i].mean(1),
+        yerr=outliers_list[i].std(1),
+        tick_label=threshold_list,
+        log=True,
+        alpha=0.5,
+    )
+    h1, l1 = ax.get_legend_handles_labels()
+    ax.legend(h1, l1, loc="lower left")
+    ax.set_xlabel(f"The number of outlier samples, sampled by {col_name}")
+    ax.set_ylabel("The number of outliers")
+    ax.grid(True)
+    if not use_one_fig:
+        ax.set_xticklabels(threshold_list)
+        ax.set_title(f"The number of outlier data vs. {machine}'s performance")
+        os.makedirs("exp/fig", exist_ok=True)
+        plt.savefig(f"exp/fig/hist_{col_name}_{no}_{machine}.png")
+
+outlier = []
+outlier_se = []
+for i in range(len(threshold_list)):
+    outlier.append(outliers_list[:, i, :].mean())
+    outlier_se.append(
+        outliers_list[:, i, :].std() / np.sqrt(len(seed_list) * len(machines))
+    )
+x = np.arange(len(threshold_list))
+if not use_one_fig:
+    fig, ax = plt.subplots(figsize=(10, 4))
+ln1 = ax.bar(
+    x,
+    outlier,
+    yerr=outlier_se,
+    tick_label=threshold_list,
+    log=True,
+    alpha=0.5,
+)
+
+ax.set_xticklabels(threshold_list)
+ax.set_ylim()
+ax.set_xlabel(f"The number of outlier samples, sampled by {col_name}")
+ax.set_title("The number of anomalous data vs. all ASD performance")
+plt.legend()
+plt.tight_layout()
 
 # %%
