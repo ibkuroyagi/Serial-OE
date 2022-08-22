@@ -82,6 +82,9 @@ class OutlierBalancedBatchSampler(BatchSampler):
                 random.shuffle(indices)
             yield indices
             self.count += self.n_pos
+            if self.count + self.n_pos < self.n_pos_file:
+                self.count += self.n_pos
+
         if not self.drop_last:
             indices = []
             indices.extend(self.pos_idx[self.used_idx_cnt["pos"] :])
@@ -97,9 +100,8 @@ class OutlierBalancedBatchSampler(BatchSampler):
             ):
                 indices.extend(np.random.choice(self.anomaly_idx, self.n_anomaly))
             yield indices
-        if self.used_idx_cnt["pos"] + self.n_pos > self.n_pos_file:
-            self.used_idx_cnt["pos"] = 0
-            self.used_idx_cnt["neg"] = 0
+        self.used_idx_cnt["pos"] = 0
+        self.used_idx_cnt["neg"] = 0
 
     def __len__(self):
         return self.n_pos_file // self.n_pos

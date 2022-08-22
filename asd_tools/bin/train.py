@@ -210,7 +210,7 @@ def main():
         n_pos=config["n_pos"],
         n_neg=config["n_pos"],
         shuffle=False,
-        drop_last=False,
+        drop_last=True,
         anomaly_as_neg=config.get("anomaly_as_neg", True),
         n_anomaly=config.get("n_anomaly_in_mini_batch", 0),
     )
