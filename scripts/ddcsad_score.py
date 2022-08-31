@@ -28,7 +28,7 @@ seed = 0
 n_anomaly = 1
 machine = machines[0]
 for n_anomaly in n_anomaly_list:
-    for seed in [0, 1, 2, 3]:
+    for seed in [0, 1, 2, 3, 4]:
         for machine in machines:
             columns = [
                 f"dev_{machine}_hauc",
@@ -78,7 +78,7 @@ for n_anomaly in n_anomaly_list:
 
 # %%
 no = 100
-seed_list = [0, 1, 2, 3]
+seed_list = [0, 1, 2, 3, 4]
 n_anomaly = 0
 ddcsad_score_list = np.zeros((len(machines), len(seed_list)))
 for k, seed in enumerate(seed_list):
