@@ -11,7 +11,7 @@ machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 
 # %%
 # 異常スコアの変遷をエラーバー(標準誤差,SE)をプロットする
-no = 120
+no = 208
 seed_list = [0, 1, 2, 3, 4]
 n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
 anomaly_score_list = np.zeros((len(machines), len(n_anomaly_list), len(seed_list)))
@@ -98,7 +98,7 @@ plt.savefig(f"exp/fig/{no}_all.png")
 # DDCSAD のスコアと一緒にプロット
 # %%
 # 異常スコアの変遷をエラーバー(標準誤差,SE)をプロットする
-no = 100
+no = 120
 seed_list = [0, 1, 2, 3, 4]
 n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
 ddcsad_score_list = np.zeros((len(machines), len(n_anomaly_list), len(seed_list)))
@@ -330,9 +330,9 @@ plt.savefig(f"exp/fig/{no}_all.png")
 # seed with outlier or section
 feature = "_embed"
 # feature = "_prediction"
-no = "020"
+no = "019"
 # col_name = "machine2"
-col_name = "outlier"
+col_name = "outlier2"
 if col_name == "machine":
     threshold_list = [
         0,
@@ -361,9 +361,9 @@ elif col_name in ["section2", "outlier2"]:
         0.01,
         0.05,
         0.1,
-        0.3,
+        # 0.3,
         0.5,
-        0.7,
+        # 0.7,
         1,
     ]
 else:
@@ -389,16 +389,13 @@ else:
     ]
 
 seed_list = [0, 1, 2, 3, 4]
-seed_list = [0]
 anomaly_score_list = np.zeros((len(machines), len(threshold_list), len(seed_list)))
 outliers_list = np.zeros((len(machines), len(threshold_list), len(seed_list)))
 for k, seed in enumerate(seed_list):
     for j, threshold in enumerate(threshold_list):
         score_path = f"exp/all/audioset_v{no}_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/score{feature}.csv"
-        if (
-            ((threshold == 0)
-            and (col_name == ["outlier2", "section2", "machine"]))
-            or ((threshold == 1) and (col_name in ["outlier", "section", "machine2"]))
+        if ((threshold == 0) and (col_name == ["outlier2", "section2", "machine"])) or (
+            (threshold == 1) and (col_name in ["outlier", "section", "machine2"])
         ):
             score_path = f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score{feature}.csv"
         # if (
@@ -414,7 +411,17 @@ for k, seed in enumerate(seed_list):
         df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
         df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
         for i, machine in enumerate(machines):
-            outliers_list[i, j, k] = int(subprocess.check_output(['wc', '-l', f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/{col_name}_{threshold}.scp"]).decode().split(' ')[0])
+            outliers_list[i, j, k] = int(
+                subprocess.check_output(
+                    [
+                        "wc",
+                        "-l",
+                        f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/{col_name}_{threshold}.scp",
+                    ]
+                )
+                .decode()
+                .split(" ")[0]
+            )
             sorted_df = df[
                 (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 2)
             ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
@@ -494,7 +501,7 @@ ln1 = ax.bar(
     outlier,
     yerr=outlier_se,
     tick_label=threshold_list,
-    log=True,
+    log=True,s
     alpha=0.5,
 )
 ax2 = ax.twinx()
@@ -545,26 +552,36 @@ if col_name in ["outlier", "section"]:
     ]
 elif col_name in ["outlier2", "section2"]:
     threshold_list = [
-            0,
-            0.0001,
-            0.0005,
-            0.001,
-            0.005,
-            0.01,
-            0.05,
-            0.1,
-            0.3,
-            0.5,
-            0.7,
-            1,
-        ]
+        0,
+        0.0001,
+        0.0005,
+        0.001,
+        0.005,
+        0.01,
+        0.05,
+        0.1,
+        # 0.3,
+        0.5,
+        # 0.7,
+        1,
+    ]
 seed_list = [0, 1, 2, 3, 4]
 # seed_list = [0]
 outliers_list = np.zeros((len(machines), len(threshold_list), len(seed_list)))
 for k, seed in enumerate(seed_list):
     for j, threshold in enumerate(threshold_list):
         for i, machine in enumerate(machines):
-            outliers_list[i, j, k] = int(subprocess.check_output(['wc', '-l', f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/{col_name}_{threshold}.scp"]).decode().split(' ')[0])
+            outliers_list[i, j, k] = int(
+                subprocess.check_output(
+                    [
+                        "wc",
+                        "-l",
+                        f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/{col_name}_{threshold}.scp",
+                    ]
+                )
+                .decode()
+                .split(" ")[0]
+            )
 use_one_fig = False
 if use_one_fig:
     fig, ax = plt.subplots(figsize=(10, 4))

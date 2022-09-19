@@ -82,38 +82,52 @@ columns = [
 ]
 sorted_df = df.sort_values(by=f"eval_{machine}_hauc", ascending=False)[columns]
 # %%
-for seed in range(3):
-    machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
-    score_path = (
-        f"exp/all/audioset_v000_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
-    )
-    df = pd.read_csv(score_path)
-    df.sort_values(by="eval_hauc", ascending=False, inplace=True)
-    df.reset_index(drop=True, inplace=True)
-    df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
-    df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
-    # df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
-    df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
-    df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
-    df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
-
-    auc_list = []  # AUC,pAUC,mAUC
-    hauc_mauc_list = []
-    for i, machine in enumerate(machines):
-        sorted_df = df[
-            (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 2)
-        ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
-        sorted_df.reset_index(drop=True, inplace=True)
-        auc_pauc = list(
-            sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
+machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
+seed_list = [0, 1, 2, 3, 4]
+no_list = ["008" ,"019", "020", "021"]
+seed_auc_list = np.zeros((len(seed_list), len(machines) * 2))
+seed_hauc_mauc_list = np.zeros((len(seed_list), len(machines) * 2))
+for no in no_list:
+    for seed in seed_list:
+        score_path = (
+            f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
         )
-        auc_list += auc_pauc
-        hauc_mauc_list += [
-            mean(auc_pauc),
-            sorted_df.loc[0, f"dev_{machine}_mauc"] * 100,
-        ]
-    print("auc_pauc", seed, auc_list)
-    print("hauc_mauc", seed, hauc_mauc_list)
+        df = pd.read_csv(score_path)
+        df.sort_values(by="eval_hauc", ascending=False, inplace=True)
+        df.reset_index(drop=True, inplace=True)
+        df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
+        df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
+        # df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
+        df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
+        df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
+        df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
+
+        auc_list = []  # AUC,pAUC,mAUC
+        hauc_mauc_list = []
+        for i, machine in enumerate(machines):
+            sorted_df = df[
+                (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 4)
+            ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
+            sorted_df.reset_index(drop=True, inplace=True)
+            auc_pauc = list(
+                sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
+            )
+            auc_list += auc_pauc
+            hauc_mauc_list += [
+                mean(auc_pauc),
+                sorted_df.loc[0, f"dev_{machine}_mauc"] * 100,
+            ]
+        seed_auc_list[seed] = auc_list
+        seed_hauc_mauc_list[seed] = hauc_mauc_list
+    #     print("auc_pauc", seed, auc_list)
+    #     print("hauc_mauc", seed, hauc_mauc_list)
+    # print("auc_pauc", seed_auc_list.mean(0))
+    print(f"\n{no} hauc_mauc mean")
+    for i in range(12):
+        print(seed_hauc_mauc_list.mean(0)[i], end=", ")
+    print(f"\n{no} hauc_mauc SE")
+    for i in range(12):
+        print(seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list)), end=", ")
 # %%
 
 
@@ -433,40 +447,116 @@ col_names = ["section", "outlier"]
 #     0.9999,
 #     1,
 # ]
-col_names = ["machine"]
-thresholds = [
-    0,
-    0.001,
-    0.005,
-    0.01,
-    0.05,
-    0.1,
-    0.2,
-    0.3,
-    0.4,
-    0.5,
-    0.6,
-    0.7,
-    0.8,
-    0.9,
-    1,
-]
+col_names = ["outlier2"]
+
 # thresholds = [0]
-# seeds = [0, 1, 2, 3, 4]
-seeds = [0, 1, 2, 3]
+seeds = [0, 1, 2, 3, 4]
+no = "019"
+# seeds = [0]
 for col_name in col_names:
     for seed in seeds:
+        if col_name == "machine":
+            thresholds = [
+                0,
+                0.001,
+                0.005,
+                0.01,
+                0.05,
+                0.1,
+                0.2,
+                0.3,
+                0.4,
+                0.5,
+                0.6,
+                0.7,
+                0.8,
+                0.9,
+                1,
+            ]
+        elif col_name in ["section2", "outlier2"]:
+            thresholds = [
+                0,
+                0.0001,
+                0.0005,
+                0.001,
+                0.005,
+                0.01,
+                0.05,
+                0.1,
+                0.3,
+                0.5,
+                0.7,
+                1,
+            ]
+        else:
+            thresholds = [
+                0,
+                0.1,
+                # 0.2,
+                0.3,
+                # 0.4,
+                0.5,
+                # 0.6,
+                0.7,
+                # 0.8,
+                0.9,
+                # 0.95,
+                0.99,
+                # 0.995,
+                0.999,
+                # 1,
+            ]
         for threshold in thresholds:
             for machine in machines:
                 if not os.path.isfile(
-                    f"exp/{machine}/audioset_v000_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv"
+                    f"exp/{machine}/audioset_v{no}_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv"
                 ):
                     run_stage = 3
                     if os.path.isfile(
-                        f"exp/{machine}/audioset_v000_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs.pkl"
+                        f"exp/{machine}/audioset_v{no}_{col_name}{threshold}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs.pkl"
                     ):
                         run_stage = 4
-                    job = f"./sub_use_outliers_job.sh --start_stage 3 --run_stage {run_stage} --threshold {threshold} --col_name {col_name} --seed {seed} --machine {machine}"
+                    job = f"./sub_use_outliers_job.sh --start_stage 3 --run_stage {run_stage} --stop_stage 3 --threshold {threshold} --col_name {col_name} --seed {seed} --machine {machine} --no audioset_v{no}"
                     print(job)
 
+# %%
+seeds = [0, 1, 2, 3, 4]
+
+n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
+no = "226"
+# nos = [127]
+nos = [126, 127, 128, 129, 130, 226, 227, 228, 229, 230]
+for no in nos:
+    for seed in seeds:
+        for n_anomaly in n_anomaly_list:
+            for machine in machines:
+                if not os.path.isfile(
+                    f"exp/{machine}/audioset_v{no}_0.15_anomaly{n_anomaly}_max6_seed{seed}/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv"
+                ):
+                    run_stage = 3
+                    if os.path.isfile(
+                        f"exp/{machine}/audioset_v{no}_0.15_anomaly{n_anomaly}_max6_seed{seed}/checkpoint-100epochs/checkpoint-100epochs.pkl"
+                    ):
+                        run_stage = 4
+                    job = f"./sub_job.sh --no audioset_v{no} --stage 1 --start_stage {run_stage} --n_anomaly {n_anomaly} --seed {seed} --machine {machine}"
+                    print(job)
+
+# %%
+seeds = [0, 1, 2, 3, 4]
+
+nos = ["026", "027", "028", "029", "030"]
+for no in nos:
+    for seed in seeds:
+        for n_anomaly in n_anomaly_list:
+            for machine in machines:
+                if not os.path.isfile(
+                    f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv"
+                ):
+                    run_stage = 3
+                    if os.path.isfile(
+                        f"exp/{machine}/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/checkpoint-100epochs.pkl"
+                    ):
+                        run_stage = 4
+                    job = f"./sub_job.sh --no audioset_v{no} --stage 1 --start_stage {run_stage} --seed {seed} --machine {machine}"
+                    print(job)
 # %%
