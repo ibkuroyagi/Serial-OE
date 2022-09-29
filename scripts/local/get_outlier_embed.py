@@ -313,8 +313,8 @@ def main():
         "dcase_valid": valid_loader,
         "outlier": outlier_loader,
     }
-    # if len(args.audioset_scps) > 0:
-    #     loader_dict["audioset"] = audioset_loader
+    if len(args.audioset_scps) > 0:
+        loader_dict["audioset"] = audioset_loader
     for mode, loader in loader_dict.items():
         csv_path = args.checkpoint.replace(".pkl", f"_{mode}_mean.csv")
         with open(csv_path, "w", newline="") as g:

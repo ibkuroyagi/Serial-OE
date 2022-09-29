@@ -9,17 +9,15 @@ import argparse
 import logging
 import os
 import sys
+
 import matplotlib
 import numpy as np
 import pandas as pd
 import yaml
-from sklearn.neighbors import LocalOutlierFactor
+from asd_tools.utils import seed_everything, zscore
 from sklearn.mixture import GaussianMixture
+from sklearn.neighbors import KernelDensity, LocalOutlierFactor, NearestNeighbors
 from sklearn.svm import OneClassSVM
-from sklearn.neighbors import NearestNeighbors
-from asd_tools.utils import seed_everything
-from asd_tools.utils import zscore
-
 
 # set to avoid matplotlib error in CLI environment
 matplotlib.use("Agg")
@@ -186,12 +184,18 @@ def main():
                         eval_df.loc[
                             eval_df["section"] == section_id, f"GMM_{hp}_{used_set}"
                         ] = zscore(gmm_score)
-                        # ocsvm = OneClassSVM(nu=1 / (2 * hp), kernel="rbf")
-                        # ocsvm.fit(input_valid)
-                        # ocsvm_score = ocsvm.score_samples(input_eval)
-                        # eval_df.loc[
-                        #     eval_df["section"] == section_id, f"OCSVM_{hp}"
-                        # ] = zscore(ocsvm_score)
+                        ocsvm = OneClassSVM(nu=1 / (2 * hp), kernel="rbf")
+                        ocsvm.fit(input_valid)
+                        ocsvm_score = ocsvm.score_samples(input_eval)
+                        eval_df.loc[
+                            eval_df["section"] == section_id, f"OCSVM_{hp}_{used_set}"
+                        ] = zscore(ocsvm_score).astype(float)
+                        kde = KernelDensity(kernel="gaussian", bandwidth=1 / hp)
+                        kde.fit(input_valid)
+                        kde_score = kde.score_samples(input_eval)
+                        eval_df.loc[
+                            eval_df["section"] == section_id, f"KDE_{hp}_{used_set}"
+                        ] = zscore(kde_score).astype(float)
                         knn = NearestNeighbors(n_neighbors=hp, metric="euclidean")
                         knn.fit(input_valid)
                         knn_score = knn.kneighbors(input_eval)[0].mean(1)
@@ -202,8 +206,10 @@ def main():
                             post_cols += [
                                 f"LOF_{hp}_{used_set}",
                                 f"GMM_{hp}_{used_set}",
+                                f"OCSVM_{hp}_{used_set}",
+                                f"KDE_{hp}_{used_set}",
                                 f"KNN_{hp}_{used_set}",
-                            ]  # OC-SCM_{hp}_{used_set}
+                            ]
             post_cols.sort()
         columns = ["path", "section", "is_normal"] + post_cols
         logging.info(f"columns:{columns}")
