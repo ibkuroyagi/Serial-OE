@@ -15,7 +15,7 @@ expdir = "/home/i_kuroyanagi/workspace2/laboratory/ParallelWaveGAN/egs/dcase2020
 
 # %%
 no = "v080"
-no = "v180-anomaly"
+# no = "v280-anomaly"
 if no == "v080":
     n_anomaly_list = [0]
     norm = "bin"
@@ -24,11 +24,14 @@ elif no == "v180-anomaly":
     n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
     norm = "bin"
     step = "5000"
-seed = 0
-n_anomaly = 1
+elif no == "v280-anomaly":
+    n_anomaly_list = [0, 1, 2, 4, 8, 16, 32]
+    norm = "bin"
+    step = "4000"
+seed_list = [0, 1, 2, 3, 4]
 machine = machines[0]
 for n_anomaly in n_anomaly_list:
-    for seed in [0, 1, 2, 3, 4]:
+    for seed in seed_list:
         for machine in machines:
             columns = [
                 f"dev_{machine}_hauc",
@@ -77,22 +80,37 @@ for n_anomaly in n_anomaly_list:
             score_df.to_csv(save_path, index=False)
 
 # %%
-no = 100
+no = "v080"
 seed_list = [0, 1, 2, 3, 4]
+seed_auc_list = np.zeros((len(seed_list), len(machines) * 2))
+seed_hauc_mauc_list = np.zeros((len(seed_list), len(machines) * 2))
 n_anomaly = 0
 ddcsad_score_list = np.zeros((len(machines), len(seed_list)))
 for k, seed in enumerate(seed_list):
+    auc_list = []
+    hauc_mauc_list = []
     for i, machine in enumerate(machines):
-        ddcsad_path = f"/home/i_kuroyanagi/workspace2/laboratory/ParallelWaveGAN/egs/dcase2020-task2/greedy/exp2/{machine}/bin/ResNet38Double/v080_seed{seed}/scratch/anomaly{n_anomaly}/dev/checkpoint-4000steps/split10frame256_0.5/agg.csv"
-        ddcsad_df = pd.read_csv(ddcsad_path)
-        ddcsad_score_list[i, k] = (
-            ddcsad_df.loc[
-                0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]
-            ].values.mean()
-            * 100
+        ddcsad_path = f"/home/i_kuroyanagi/workspace2/laboratory/ParallelWaveGAN/egs/dcase2020-task2/greedy/exp2/{machine}/bin/ResNet38Double/{no}_seed{seed}/scratch/anomaly{n_anomaly}/dev/checkpoint-4000steps/split10frame256_0.5/agg.csv"
+        sorted_df = pd.read_csv(ddcsad_path)
+        auc_pauc = list(
+            sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
         )
-
-# %%
-ddcsad_score = ddcsad_score_list.mean(1)
-ddcsad_score
+        auc_list += auc_pauc
+        hauc_mauc_list += [
+            mean(auc_pauc),
+            sorted_df.loc[0, f"dev_{machine}_mauc"] * 100,
+        ]
+    seed_auc_list[seed] = auc_list
+    seed_hauc_mauc_list[seed] = hauc_mauc_list
+print(f"\n{no} hauc_mauc")
+for i in range(12):
+    ave = seed_hauc_mauc_list.mean(0)[i]
+    se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
+    print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+ave = seed_hauc_mauc_list.mean(0)[::2].mean()
+se = seed_hauc_mauc_list[:, ::2].std() / np.sqrt(len(seed_list) * len(machine))
+print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
+se = seed_hauc_mauc_list[:, 1::2].std() / np.sqrt(len(seed_list) * len(machine))
+print(f"{ave:.2f}\pm{se:.2f}")
 # %%

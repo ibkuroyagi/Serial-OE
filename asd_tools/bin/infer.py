@@ -190,7 +190,7 @@ def main():
                         eval_df.loc[
                             eval_df["section"] == section_id, f"OCSVM_{hp}_{used_set}"
                         ] = zscore(ocsvm_score).astype(float)
-                        kde = KernelDensity(kernel="gaussian", bandwidth=1 / hp)
+                        kde = KernelDensity(kernel="gaussian", bandwidth=hp)
                         kde.fit(input_valid)
                         kde_score = kde.score_samples(input_eval)
                         eval_df.loc[

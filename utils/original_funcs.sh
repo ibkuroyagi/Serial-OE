@@ -15,7 +15,7 @@ slurm_gpu_scheduler() {
         exit 1
     fi
     while :; do
-        sleep 10 # Wait for the previous tasks to be assigned to the GPUs.
+        sleep 8 # Wait for the previous tasks to be assigned to the GPUs.
         local cnt_gpus=0
         local using_gpu_list=$(squeue -u $(whoami) -h -o "%.5b")
         for token in $using_gpu_list; do

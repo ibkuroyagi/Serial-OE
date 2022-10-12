@@ -25,9 +25,9 @@ for machine in machines:
         dev_section = [0, 1, 2]
         dev_section = [0, 1, 2, 3, 4, 5]
     # for machine in machines:
-    no = "v008"
+    no = "v029"
     # for simple ASD model
-    col_name = ""
+    # col_name = ""
     checkpoint_dir = f"exp/{machine}/audioset_{no}_0.15_seed0/checkpoint-100epochs"
     # for using anomaly data model
     # no = "v200"
@@ -36,7 +36,8 @@ for machine in machines:
     # )
     # for using outlier data model
     only_dcase = True
-    col_name = "outlier"
+    use_train = False
+    col_name = "machine2"
     col = "pred_machine"
     if col_name == "machine2":
         threshold_list = [
@@ -105,7 +106,6 @@ for machine in machines:
         ]
         if col_name == "section2":
             col = "pred_section_max"
-    no = "v021"
     for threshold in threshold_list:
         checkpoint_dir = f"exp/{machine}/audioset_{no}_{col_name}{threshold}_0.15_seed0/checkpoint-100epochs"
         agg_df = pd.read_csv(
@@ -284,19 +284,20 @@ for machine in machines:
             f"exp/fig/{no}_dcase_{col_name}_{col}{threshold}_{machine}_{algorithm}{n_neighbors}.png"
         )
 # %%
-for no in ["v008", "v019", "v020", "v021", "v026", "v027", "v028", "v029", "v030"]:
+seed = 0
+for no in ["v030"]:  # ,
     for machine in machines:
         other_machines = machines.copy()
         other_machines.remove(machine)
         if machine in ["fan", "pump", "slider", "valve"]:
             dev_section = [0, 2, 4, 6]
-            dev_section = [0, 1, 2, 3, 4, 5, 6]
+            # dev_section = [0, 1, 2, 3, 4, 5, 6]
         elif machine == "ToyCar":
             dev_section = [0, 1, 2, 3]
-            dev_section = [0, 1, 2, 3, 4, 5, 6]
+            # dev_section = [0, 1, 2, 3, 4, 5, 6]
         elif machine == "ToyConveyor":
             dev_section = [0, 1, 2]
-            dev_section = [0, 1, 2, 3, 4, 5]
+            # dev_section = [0, 1, 2, 3, 4, 5]
         # for machine in machines:
         use_train = False
         # no = "v020"
@@ -315,7 +316,7 @@ for no in ["v008", "v019", "v020", "v021", "v026", "v027", "v028", "v029", "v030
             # for simple ASD model
             col_name = ""
             checkpoint_dir = (
-                f"exp/{machine}/audioset_{no}_0.15_seed0/checkpoint-100epochs"
+                f"exp/{machine}/audioset_{no}_0.15_seed{seed}/checkpoint-100epochs"
             )
         elif no in ["v119", "v219", "v108", "v208"]:
             # for using anomaly data model
@@ -449,6 +450,7 @@ for no in ["v008", "v019", "v020", "v021", "v026", "v027", "v028", "v029", "v030
         neigh.fit(X_embedded)
         d = neigh.kneighbors(X_embedded)[0].sum(-1)
         label_list = sorted(list(use_df["label"].unique()))
+        label_list = label_list[-2:] + label_list[:-2]
         cmap_names = ["tab20", "tab20_r", "tab20b", "tab20b_r", "tab20c", "tab20c_r"]
         cm = plt.cm.get_cmap(cmap_names[0])
         plt.figure(figsize=(16, 12))
@@ -472,9 +474,10 @@ for no in ["v008", "v019", "v020", "v021", "v026", "v027", "v028", "v029", "v030
             s = 30
             if "normal" in label:
                 marker = "o"
+                id_ = f"ID {label.split('_')[1]} normal"
             elif "anomaly_" in label:
                 marker = "x"
-                id_ = None
+                id_ = f"ID {label.split('_')[1]} anomaly"
             elif "train_normal" in label:
                 marker = "o"
             elif "zero" == label:
@@ -493,8 +496,10 @@ for no in ["v008", "v019", "v020", "v021", "v026", "v027", "v028", "v029", "v030
                 s=s,
             )
         plt.legend(fontsize=20)
-        plt.title(f"{col} {machine} {algorithm}{n_neighbors}")
+        plt.title(f"no:{no} seed:{seed} {col} {machine} {algorithm}{n_neighbors}")
         plt.tight_layout()
-        plt.savefig(f"exp/fig/{no}_dcase_{col}_{machine}_{algorithm}{n_neighbors}.png")
+        plt.savefig(
+            f"exp/fig/{no}_dev_dcase_{col}_{machine}_{algorithm}{n_neighbors}_seed{seed}.png"
+        )
 
 # %%

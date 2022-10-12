@@ -13,15 +13,15 @@ set -euo pipefail
 
 echo "Start scoring arregated anomaly scores."
 agg_checkpoints=""
-for machine in "fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve"; do
-    agg_checkpoints+="exp/${machine}/${no}/best_loss/best_loss${feature}_agg.csv "
-done
-mkdir -p "exp/all/${no}/best_loss"
-echo "See log via  exp/all/${no}/best_loss/scoring${feature}.log"
-# shellcheck disable=SC2154,SC2086
-${train_cmd} "exp/all/${no}/best_loss/scoring${feature}.log" \
-    python -m asd_tools.bin.scoring --feature "${feature}" --agg_checkpoints ${agg_checkpoints}
-score_checkpoints="exp/all/${no}/best_loss/score${feature}.csv "
+# for machine in "fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve"; do
+#     agg_checkpoints+="exp/${machine}/${no}/best_loss/best_loss${feature}_agg.csv "
+# done
+# mkdir -p "exp/all/${no}/best_loss"
+# echo "See log via  exp/all/${no}/best_loss/scoring${feature}.log"
+# # shellcheck disable=SC2154,SC2086
+# ${train_cmd} "exp/all/${no}/best_loss/scoring${feature}.log" \
+#     python -m asd_tools.bin.scoring --feature "${feature}" --agg_checkpoints ${agg_checkpoints}
+# score_checkpoints="exp/all/${no}/best_loss/score${feature}.csv "
 score_checkpoints=""
 for epoch in ${epochs}; do
     echo "Start scoring arregated anomaly scores in ${epoch} epoch."

@@ -166,10 +166,6 @@ class OECTrainer(object):
             / self.config["accum_grads"]
         )
         section_pred = y_["section"][section_idx]
-        # logging.info(f"section_pred:{section_pred.shape},{section_pred}")
-        # logging.info(
-        #     f"section[section_idx]:{section[section_idx].shape},{section[section_idx]}"
-        # )
         if self.metric_fc is not None:
             section_pred = self.metric_fc(
                 y_["embedding"][section_idx], section[section_idx]

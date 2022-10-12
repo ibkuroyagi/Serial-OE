@@ -14,7 +14,7 @@ feature=_embed
 . utils/parse_options.sh || exit 1
 # shellcheck disable=SC1091
 . utils/original_funcs.sh || exit 1
-available_gpus=16
+available_gpus=25
 set -euo pipefail
 
 valid_ratio=0.15

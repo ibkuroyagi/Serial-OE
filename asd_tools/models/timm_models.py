@@ -2,7 +2,6 @@ import timm
 import torch
 import torch.nn as nn
 import torchaudio.transforms as T
-import logging
 
 
 class Backbone(nn.Module):
@@ -12,7 +11,7 @@ class Backbone(nn.Module):
 
         if "regnet" in name:
             self.out_features = self.net.head.fc.in_features
-        elif "res" in name:  # works also for resnest
+        elif "res" in name:
             self.out_features = self.net.fc.in_features
         elif "efficientnet" in name:
             self.out_features = self.net.classifier.in_features
@@ -109,16 +108,13 @@ class ASDModel(nn.Module):
                 x = self.timemask(x)
             if self.freqmask is not None:
                 x = self.freqmask(x)
-            # logging.info(f"specaug:{x.shape}")
         x = x.unsqueeze(1)
-        # logging.info(f"unsqueeze:{x.shape}")
         if self.use_pos:
             x1 = self.amplitude2db(x)
             x2 = self.amplitude2db(self.melspectrogram1(input))
             x = torch.cat([x, x1, x2.unsqueeze(1)], dim=1)
         else:
             x = x.expand(-1, 3, -1, -1)
-        # logging.info(f"before x:{x.shape}")
         x = self.backbone(x)
         x = self.global_pool(x)[:, :, 0, 0]
         embedding = self.neck(x)

@@ -16,9 +16,97 @@ from asd_tools.utils import seed_everything
 from asd_tools.utils import zscore
 from sklearn.manifold import TSNE
 import umap
+from sklearn.neighbors import KernelDensity
+from statistics import mean
+from scipy.stats import hmean
+from sklearn.metrics import roc_auc_score
+
+
+def reset_columns(df):
+    df_col = df.columns
+    df = df.T.reset_index(drop=False).T
+    for i in range(df.shape[1]):
+        rename_col = {i: "_".join(df_col[i])}
+        df = df.rename(columns=rename_col)
+    df = df.drop(["level_0", "level_1"], axis=0).reset_index()
+    return df
+
+
+def upper_mean(series):
+    """Average of values from maximum to median"""
+    sorted_series = sorted(series)
+    upper_elements = sorted_series[len(series) // 2 :]
+    return np.mean(upper_elements)
+
 
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
+# %%
+hp = 1
+pos_machine = machines[0]
+checkpoint_dir = (
+    f"exp/{pos_machine}/audioset_v000_machine0_0.15_seed0/checkpoint-100epochs"
+)
+checkpoint = checkpoint_dir.split("/")[-1]
+feature_cols = [f"e{i}" for i in range(128)]
+valid_df = pd.read_csv(os.path.join(checkpoint_dir, checkpoint + "_valid.csv"))
+eval_df = pd.read_csv(os.path.join(checkpoint_dir, checkpoint + "_eval.csv"))
+if pos_machine in ["fan", "pump", "slider", "valve"]:
+    dev_section = [0, 2, 4, 6]
+elif pos_machine == "ToyCar":
+    dev_section = [0, 1, 2, 3]
+elif pos_machine == "ToyConveyor":
+    dev_section = [0, 1, 2]
+for section_id in dev_section:
+    input_valid = valid_df[(valid_df["section"] == section_id)][feature_cols]
+    input_eval = eval_df[eval_df["section"] == section_id][feature_cols]
+    kde = KernelDensity(kernel="gaussian", bandwidth=1 / hp)
+    kde.fit(input_valid)
+    kde_score = kde.score_samples(input_eval)
+    eval_df.loc[eval_df["section"] == section_id, f"KDE_{hp}_all"] = zscore(kde_score)
+agg_fc = ["max", "mean", "median", upper_mean]
+columns = ["path", "section", "is_normal", f"KDE_{hp}_all"]
+agg_df = eval_df[columns].groupby("path").agg(agg_fc)
+agg_df = reset_columns(agg_df)
 
+del (
+    agg_df["is_normal_max"],
+    agg_df["is_normal_mean"],
+    agg_df["is_normal_upper_mean"],
+    agg_df["section_max"],
+    agg_df["section_mean"],
+    agg_df["section_upper_mean"],
+)
+agg_df.rename(
+    columns={"is_normal_median": "is_normal", "section_median": "section"},
+    inplace=True,
+)
+
+auc_list = []
+col = f"KDE_{hp}_all_upper_mean"
+for section_id in dev_section:
+    target_idx = agg_df["section"] == section_id
+    print(section_id)
+    auc = roc_auc_score(
+        1 - agg_df.loc[target_idx, "is_normal"].values.astype(int),
+        -agg_df.loc[target_idx, col].values.astype(float),
+    )
+    auc_list.append(auc)
+print(f"{pos_machine}:{mean(auc_list)}")
+# %%
+# 推論専用スクリプトの生成
+# 100epoch目のpklがあればそれをcheckpointにする
+# confはcheckpointから生成
+# featureは"_prediction"と"_embed"を実行
+checkpoint_list = sorted(
+    glob.glob("exp/fan/**/checkpoint-100epochs/checkpoint-100epochs.pkl")
+)
+for checkpoints in checkpoint_list:
+    no = checkpoints.split("_")[1]
+    tag = checkpoints.split("/")[2]
+    conf = f"conf/tuning/asd_model.audioset_{no}.yaml"
+    job = f"sbatch ./ex1.sh --conf {conf} --tag {tag}"
+    print("sleep 12")
+    print(job)
 # %%
 # machine = machines[0]
 for machine in machines:
@@ -34,64 +122,127 @@ for machine in machines:
         df[["section", "is_dev", "is_anomaly", "is_normal"]].groupby(by="section").sum()
     )
 # %%
+# noneの出力
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
-for machine in machines:
-    dir_list = os.listdir(f"downloads/dev/{machine}/train")
-    df = pd.DataFrame(dir_list, columns=["path"])
-    df["section"] = df["path"].map(lambda x: int(x.split("_")[2]))
-    print("train", machine, sorted(df["section"].unique()))
+seed_list = [0, 1, 2, 3, 4]
+seed_auc_list = np.zeros((len(seed_list), len(machines) * 2))
+seed_hauc_mauc_list = np.zeros((len(seed_list), len(machines) * 2))
 
-    dir_list = os.listdir(f"downloads/dev/{machine}/test")
-    df = pd.DataFrame(dir_list, columns=["path"])
-    df["section"] = df["path"].map(lambda x: int(x.split("_")[2]))
-    print("dev/test", machine, sorted(df["section"].unique()))
-    dir_list = os.listdir(f"downloads/eval/{machine}/test")
-    df = pd.DataFrame(dir_list, columns=["path"])
-    df["section"] = df["path"].map(lambda x: int(x.split("_")[2]))
-    print("eval/test", machine, sorted(df["section"].unique()))
+no = "020"
+for seed in seed_list:
+    score_path = (
+        f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score_none.csv"
+    )
+    df = pd.read_csv(score_path)
+    df.sort_values(by="eval_hauc", ascending=False, inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
+    df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
+    df["agg"] = df["post_process"].map(lambda x: x.split("_")[2])
+    auc_list = []  # AUC,pAUC,mAUC
+    hauc_mauc_list = []
+    for i, machine in enumerate(machines):
+        sorted_df = df[(df["agg"] == "upper")].sort_values(
+            by=f"eval_{machine}_hauc", ascending=False
+        )
+        sorted_df.reset_index(drop=True, inplace=True)
+        auc_pauc = list(
+            sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
+        )
+        auc_list += auc_pauc
+        hauc_mauc_list += [
+            mean(auc_pauc),
+            sorted_df.loc[0, f"dev_{machine}_mauc"] * 100,
+        ]
+    seed_auc_list[seed] = auc_list
+    seed_hauc_mauc_list[seed] = hauc_mauc_list
+# print(f"\n{no} hauc_mauc mean")
+# for i in range(12):
+#     print(seed_hauc_mauc_list.mean(0)[i], end=", ")
+# print(f"\n{no} hauc_mauc SE")
+# for i in range(12):
+#     print(seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list)), end=", ")
+print(f"\n{no} hauc_mauc")
+for i in range(12):
+    ave = seed_hauc_mauc_list.mean(0)[i]
+    se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
+    print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+ave = seed_hauc_mauc_list.mean(0)[::2].mean()
+se = seed_hauc_mauc_list[:, ::2].std() / np.sqrt(len(seed_list) * len(machine))
+print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
+se = seed_hauc_mauc_list[:, 1::2].std() / np.sqrt(len(seed_list) * len(machine))
+print(f"{ave:.2f}\pm{se:.2f}")
 
-# %%
-machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
-
-n_top = -1
-df_list = []
-score_list = sorted(glob.glob("exp/all/**/score_embed.csv"))
-for score_path in score_list:
-    if n_top > 0:
-        df = pd.read_csv(score_path)
-        df.sort_values(by="eval_hauc", ascending=False, inplace=True)
-        df.reset_index(drop=True, inplace=True)
-        df_list.append(df.iloc[:n_top])
-    else:
-        df = pd.read_csv(score_path)
-        df_list.append(df)
-df = pd.concat(df_list)
-df.sort_values(by="eval_hauc", ascending=False, inplace=True)
-df.reset_index(drop=True, inplace=True)
-df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
-df["valid"] = df["path"].map(lambda x: float(x.split("_")[2]))
-df["pow"] = df["path"].map(lambda x: int(int(x.split("/")[2].split("_")[3][1:])))
-# %%
-machine = machines[0]
-columns = [
-    "post_process",
-    "path",
-    f"eval_{machine}_hauc",
-    f"dev_{machine}_hauc",
-    f"dev_{machine}_mauc",
-]
-sorted_df = df.sort_values(by=f"eval_{machine}_hauc", ascending=False)[columns]
 # %%
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
 seed_list = [0, 1, 2, 3, 4]
-no_list = ["008" ,"019", "020", "021"]
+h_list = ["GMM", "KNN", "KDE", "LOF", "OCSVM"]
+hp_list = [2, 32, 1, 32, 1]
+seed_auc_list = np.zeros((len(seed_list), len(machines) * 2))
+seed_hauc_mauc_list = np.zeros((len(seed_list), len(machines) * 2))
+
+no = "008"
+for hp_idx, h in enumerate(h_list):
+    for seed in seed_list:
+        score_path = f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
+        df = pd.read_csv(score_path)
+        df.sort_values(by="eval_hauc", ascending=False, inplace=True)
+        df.reset_index(drop=True, inplace=True)
+        df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
+        df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
+        df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
+        df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
+        df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
+        # sorted_df = df[
+        #     (df["h"] == h) & (df["agg"] == "upper")
+        # ].sort_values(by=f"eval_hauc", ascending=False)
+        # sorted_df.reset_index(drop=True, inplace=True)
+        # hp_list.append(sorted_df.loc[0, ["hp"]])
+        auc_list = []  # AUC,pAUC,mAUC
+        hauc_mauc_list = []
+        for i, machine in enumerate(machines):
+            sorted_df = df[
+                (df["h"] == h) & (df["agg"] == "upper") & (df["hp"] == hp_list[hp_idx])
+            ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
+            sorted_df.reset_index(drop=True, inplace=True)
+            auc_pauc = list(
+                sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values
+                * 100
+            )
+            auc_list += auc_pauc
+            hauc_mauc_list += [
+                mean(auc_pauc),
+                sorted_df.loc[0, f"dev_{machine}_mauc"] * 100,
+            ]
+        seed_auc_list[seed] = auc_list
+        seed_hauc_mauc_list[seed] = hauc_mauc_list
+    # print(f"\n{no} hauc_mauc mean")
+    # for i in range(12):
+    #     print(seed_hauc_mauc_list.mean(0)[i], end=", ")
+    # print(f"\n{no} hauc_mauc SE")
+    # for i in range(12):
+    #     print(seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list)), end=", ")
+    print(f"\n{no} {h} hauc_mauc")
+    for i in range(12):
+        ave = seed_hauc_mauc_list.mean(0)[i]
+        se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
+        print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+    ave = seed_hauc_mauc_list.mean(0)[::2].mean()
+    se = seed_hauc_mauc_list[:, ::2].std() / np.sqrt(len(seed_list) * len(machine))
+    print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+    ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
+    se = seed_hauc_mauc_list[:, 1::2].std() / np.sqrt(len(seed_list) * len(machine))
+    print(f"{ave:.2f}\pm{se:.2f}")
+# %%
+machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
+seed_list = [0, 1, 2, 3, 4]
+no_list = ["008", "019", "020", "021", "026", "027", "028", "029", "030"]
 seed_auc_list = np.zeros((len(seed_list), len(machines) * 2))
 seed_hauc_mauc_list = np.zeros((len(seed_list), len(machines) * 2))
 for no in no_list:
     for seed in seed_list:
-        score_path = (
-            f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
-        )
+        score_path = f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
         df = pd.read_csv(score_path)
         df.sort_values(by="eval_hauc", ascending=False, inplace=True)
         df.reset_index(drop=True, inplace=True)
@@ -106,11 +257,12 @@ for no in no_list:
         hauc_mauc_list = []
         for i, machine in enumerate(machines):
             sorted_df = df[
-                (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 4)
+                (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 2)
             ].sort_values(by=f"eval_{machine}_hauc", ascending=False)
             sorted_df.reset_index(drop=True, inplace=True)
             auc_pauc = list(
-                sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values * 100
+                sorted_df.loc[0, [f"dev_{machine}_auc", f"dev_{machine}_pauc"]].values
+                * 100
             )
             auc_list += auc_pauc
             hauc_mauc_list += [
@@ -119,17 +271,48 @@ for no in no_list:
             ]
         seed_auc_list[seed] = auc_list
         seed_hauc_mauc_list[seed] = hauc_mauc_list
-    #     print("auc_pauc", seed, auc_list)
-    #     print("hauc_mauc", seed, hauc_mauc_list)
-    # print("auc_pauc", seed_auc_list.mean(0))
     print(f"\n{no} hauc_mauc mean")
     for i in range(12):
         print(seed_hauc_mauc_list.mean(0)[i], end=", ")
     print(f"\n{no} hauc_mauc SE")
     for i in range(12):
         print(seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list)), end=", ")
+    # print(f"\n{no} hauc_mauc")
+    # for i in range(12):
+    #     ave = seed_hauc_mauc_list.mean(0)[i]
+    #     se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
+    #     print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+    # ave = seed_hauc_mauc_list.mean(0)[::2].mean()
+    # se = seed_hauc_mauc_list[:,::2].std() / np.sqrt(len(seed_list)*len(machine))
+    # print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+    # ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
+    # se = seed_hauc_mauc_list[:,1::2].std() / np.sqrt(len(seed_list)*len(machine))
+    # print(f"{ave:.2f}\pm{se:.2f}")
 # %%
-
+no = "020"
+machine = "fan"
+if machine in ["fan", "pump", "slider", "valve"]:
+    dev_section = [0, 2, 4, 6]
+elif machine == "ToyCar":
+    dev_section = [0, 1, 2, 3]
+elif machine == "ToyConveyor":
+    dev_section = [0, 1, 2]
+dev_cols = [f"{machine}_{i}_auc" for i in dev_section]
+score_path = f"exp/all/audioset_v{no}_0.15_seed4/checkpoint-100epochs/score_embed.csv"
+df = pd.read_csv(score_path)
+df.sort_values(by="eval_hauc", ascending=False, inplace=True)
+df.reset_index(drop=True, inplace=True)
+df["no"] = df["path"].map(lambda x: int(x.split("_")[1][1:]))
+df["valid"] = df["path"].map(lambda x: float(x.split("_")[2].split("/")[0]))
+df["h"] = df["post_process"].map(lambda x: x.split("_")[0])
+df["hp"] = df["post_process"].map(lambda x: int(x.split("_")[1]))
+df["agg"] = df["post_process"].map(lambda x: x.split("_")[3])
+sorted_df = df[
+    (df["h"] == "GMM") & (df["agg"] == "upper") & (df["hp"] == 4)
+].sort_values(by=f"eval_{machine}_hauc", ascending=False)
+sorted_df.reset_index(drop=True, inplace=True)
+display(sorted_df[dev_cols])
+# %%
 
 fname = "/home/i_kuroyanagi/workspace2/laboratory/asd_recipe/scripts/downloads/dev/fan/test/anomaly_id_00_00000000.wav"
 # fname = "/home/i_kuroyanagi/workspace2/laboratory/asd_recipe/scripts/downloads/IDMT-ISA-ELECTRIC-ENGINE/train_cut/engine1_good/pure_0.wav"
@@ -447,12 +630,12 @@ col_names = ["section", "outlier"]
 #     0.9999,
 #     1,
 # ]
-col_names = ["outlier2"]
-
+col_names = ["machine", "machine2"]
+# col_names = ["machine2"]
 # thresholds = [0]
 seeds = [0, 1, 2, 3, 4]
-no = "019"
-# seeds = [0]
+no = "029"
+# seeds = [0, 1, 2, 3]
 for col_name in col_names:
     for seed in seeds:
         if col_name == "machine":
@@ -492,19 +675,19 @@ for col_name in col_names:
             thresholds = [
                 0,
                 0.1,
-                # 0.2,
+                0.2,
                 0.3,
-                # 0.4,
+                0.4,
                 0.5,
-                # 0.6,
+                0.6,
                 0.7,
-                # 0.8,
+                0.8,
                 0.9,
-                # 0.95,
+                0.95,
                 0.99,
-                # 0.995,
+                0.995,
                 0.999,
-                # 1,
+                1,
             ]
         for threshold in thresholds:
             for machine in machines:
@@ -560,3 +743,97 @@ for no in nos:
                     job = f"./sub_job.sh --no audioset_v{no} --stage 1 --start_stage {run_stage} --seed {seed} --machine {machine}"
                     print(job)
 # %%
+hdev_columns = []
+heval_columns = []
+dev_columns = []
+eval_columns = []
+pdev_columns = []
+peval_columns = []
+modes = ["dev", "eval"]
+for machine in ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]:
+    hdev_columns += [f"dev_{machine}_hauc"]
+    heval_columns += [f"eval_{machine}_hauc"]
+    dev_columns += [f"dev_{machine}_auc"]
+    eval_columns += [f"eval_{machine}_auc"]
+    pdev_columns += [f"dev_{machine}_pauc"]
+    peval_columns += [f"eval_{machine}_pauc"]
+agg_checkpoints = [
+    "exp/fan/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv",
+    "exp/pump/audioset_v000_0.15/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv",
+    "exp/slider/audioset_v000_0.1/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv",
+    "exp/ToyCar/audioset_v000_0.1/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv",
+    "exp/ToyConveyor/audioset_v000_0.1/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv",
+    "exp/valve/audioset_v000_0.1/checkpoint-100epochs/checkpoint-100epochs_embed_agg.csv",
+]
+agg_df = pd.read_csv(agg_checkpoints[0])
+post_processes = list(agg_df.columns)
+for rm in ["path", "is_normal", "section", "mode"]:
+    post_processes.remove(rm)
+columns = [
+    "path",
+    "dev_hauc",
+    "eval_hauc",
+    "hauc",
+    "dev_auc",
+    "eval_auc",
+    "auc",
+    "dev_pauc",
+    "eval_pauc",
+]
+columns += (
+    heval_columns
+    + hdev_columns
+    + eval_columns
+    + dev_columns
+    + peval_columns
+    + pdev_columns
+)
+score_df = pd.DataFrame(index=post_processes, columns=columns)
+save_path = os.path.join(
+    "/".join(["exp", "all"] + os.path.dirname(agg_checkpoints[0]).split("/")[2:]),
+    f"score_embed.csv",
+)
+score_df.loc[:, "path"] = save_path
+for agg_path in agg_checkpoints:
+    agg_df = pd.read_csv(agg_path)
+    machine = agg_path.split("/")[1]
+    if machine == "ToyCar":
+        dev_sections = [0, 1, 2, 3]
+        eval_sections = [4, 5, 6]
+    elif machine == "ToyConveyor":
+        dev_sections = [0, 1, 2]
+        eval_sections = [3, 4, 5]
+    else:
+        dev_sections = [0, 2, 4, 6]
+        eval_sections = [1, 3, 5]
+    sections = {"dev": dev_sections, "eval": eval_sections}
+    for post_process in post_processes:
+        for mode in modes:
+            auc_list = []
+            pauc_list = []
+            mauc = 1.1
+            for section in sections[mode]:
+                target_idx = agg_df["section"] == section
+                auc = roc_auc_score(
+                    1 - agg_df.loc[target_idx, "is_normal"],
+                    -agg_df.loc[target_idx, post_process],
+                )
+                auc_list.append(auc)
+                score_df.loc[post_process, f"{machine}_{section}_auc"] = auc
+                if mauc > auc:
+                    mauc = auc
+                pauc = roc_auc_score(
+                    1 - agg_df.loc[target_idx, "is_normal"],
+                    -agg_df.loc[target_idx, post_process],
+                    max_fpr=0.1,
+                )
+                pauc_list.append(pauc)
+                score_df.loc[post_process, f"{machine}_{section}_pauc"] = pauc
+            score_df.loc[post_process, f"{mode}_{machine}_mauc"] = mauc
+            score_df.loc[post_process, f"{mode}_{machine}_auc"] = mean(auc_list)
+            score_df.loc[post_process, f"{mode}_{machine}_pauc"] = mean(pauc_list)
+            score_list = auc_list + pauc_list
+            score_df.loc[post_process, f"{mode}_{machine}_hauc"] = hmean(score_list)
+            score_df.loc[post_process, f"{mode}_{machine}_hauc_std"] = np.array(
+                score_list
+            ).std()
