@@ -168,10 +168,10 @@ for i in range(12):
     se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
     print(f"{ave:.2f}\pm{se:.2f}", end=", ")
 ave = seed_hauc_mauc_list.mean(0)[::2].mean()
-se = seed_hauc_mauc_list[:, ::2].std() / np.sqrt(len(seed_list) * len(machine))
+se = seed_hauc_mauc_list[:, ::2].mean(1).std() / np.sqrt(len(seed_list))
 print(f"{ave:.2f}\pm{se:.2f}", end=", ")
 ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
-se = seed_hauc_mauc_list[:, 1::2].std() / np.sqrt(len(seed_list) * len(machine))
+se = seed_hauc_mauc_list[:, 1::2].mean(1).std() / np.sqrt(len(seed_list))
 print(f"{ave:.2f}\pm{se:.2f}")
 
 # %%
@@ -182,7 +182,7 @@ hp_list = [2, 32, 1, 32, 1]
 seed_auc_list = np.zeros((len(seed_list), len(machines) * 2))
 seed_hauc_mauc_list = np.zeros((len(seed_list), len(machines) * 2))
 
-no = "008"
+no = "020"
 for hp_idx, h in enumerate(h_list):
     for seed in seed_list:
         score_path = f"exp/all/audioset_v{no}_0.15_seed{seed}/checkpoint-100epochs/score_embed.csv"
@@ -229,10 +229,10 @@ for hp_idx, h in enumerate(h_list):
         se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
         print(f"{ave:.2f}\pm{se:.2f}", end=", ")
     ave = seed_hauc_mauc_list.mean(0)[::2].mean()
-    se = seed_hauc_mauc_list[:, ::2].std() / np.sqrt(len(seed_list) * len(machine))
+    se = seed_hauc_mauc_list[:, ::2].mean(1).std() / np.sqrt(len(seed_list))
     print(f"{ave:.2f}\pm{se:.2f}", end=", ")
     ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
-    se = seed_hauc_mauc_list[:, 1::2].std() / np.sqrt(len(seed_list) * len(machine))
+    se = seed_hauc_mauc_list[:, 1::2].mean(1).std() / np.sqrt(len(seed_list))
     print(f"{ave:.2f}\pm{se:.2f}")
 # %%
 machines = ["fan", "pump", "slider", "valve", "ToyCar", "ToyConveyor"]
@@ -271,23 +271,23 @@ for no in no_list:
             ]
         seed_auc_list[seed] = auc_list
         seed_hauc_mauc_list[seed] = hauc_mauc_list
-    print(f"\n{no} hauc_mauc mean")
-    for i in range(12):
-        print(seed_hauc_mauc_list.mean(0)[i], end=", ")
-    print(f"\n{no} hauc_mauc SE")
-    for i in range(12):
-        print(seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list)), end=", ")
-    # print(f"\n{no} hauc_mauc")
+    # print(f"\n{no} hauc_mauc mean")
     # for i in range(12):
-    #     ave = seed_hauc_mauc_list.mean(0)[i]
-    #     se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
-    #     print(f"{ave:.2f}\pm{se:.2f}", end=", ")
-    # ave = seed_hauc_mauc_list.mean(0)[::2].mean()
-    # se = seed_hauc_mauc_list[:,::2].std() / np.sqrt(len(seed_list)*len(machine))
-    # print(f"{ave:.2f}\pm{se:.2f}", end=", ")
-    # ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
-    # se = seed_hauc_mauc_list[:,1::2].std() / np.sqrt(len(seed_list)*len(machine))
-    # print(f"{ave:.2f}\pm{se:.2f}")
+    #     print(seed_hauc_mauc_list.mean(0)[i], end=", ")
+    # print(f"\n{no} hauc_mauc SE")
+    # for i in range(12):
+    #     print(seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list)), end=", ")
+    print(f"\n{no} hauc_mauc")
+    for i in range(12):
+        ave = seed_hauc_mauc_list.mean(0)[i]
+        se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
+        print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+    ave = seed_hauc_mauc_list.mean(0)[::2].mean()
+    se = seed_hauc_mauc_list[:, ::2].mean(1).std() / np.sqrt(len(seed_list))
+    print(f"{ave:.2f}\pm{se:.2f}", end=", ")
+    ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
+    se = seed_hauc_mauc_list[:, 1::2].mean(1).std() / np.sqrt(len(seed_list))
+    print(f"{ave:.2f}\pm{se:.2f}")
 # %%
 no = "020"
 machine = "fan"

@@ -108,9 +108,9 @@ for i in range(12):
     se = seed_hauc_mauc_list.std(0)[i] / np.sqrt(len(seed_list))
     print(f"{ave:.2f}\pm{se:.2f}", end=", ")
 ave = seed_hauc_mauc_list.mean(0)[::2].mean()
-se = seed_hauc_mauc_list[:, ::2].std() / np.sqrt(len(seed_list) * len(machine))
+se = seed_hauc_mauc_list[:, ::2].mean(1).std() / np.sqrt(len(seed_list))
 print(f"{ave:.2f}\pm{se:.2f}", end=", ")
 ave = seed_hauc_mauc_list.mean(0)[1::2].mean()
-se = seed_hauc_mauc_list[:, 1::2].std() / np.sqrt(len(seed_list) * len(machine))
+se = seed_hauc_mauc_list[:, 1::2].mean(1).std() / np.sqrt(len(seed_list))
 print(f"{ave:.2f}\pm{se:.2f}")
 # %%
