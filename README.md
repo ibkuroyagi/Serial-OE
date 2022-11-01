@@ -1,4 +1,4 @@
-# Anomalous Sound Detection with Pytorch
+# Anomalous Sound Detection using Serial method with Outlier Exposure
 
 ## Requirements
 - Python 3.9+
@@ -8,8 +8,8 @@
 
 ## Setup
 ```bash
-$ git clone https://github.com/ibkuroyagi/anomalous_sound_detection_recipe.git
-$ cd anomalous_sound_detection_recipe/tools
+$ git clone https://github.com/ibkuroyagi/Serial-OE.git
+$ cd Serial-OE/tools
 $ make
 ```
 
