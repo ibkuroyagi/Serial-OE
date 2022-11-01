@@ -15,17 +15,17 @@ import yaml
 
 from torch.utils.data import DataLoader
 
-import asd_tools
-import asd_tools.models
-import asd_tools.losses
-import asd_tools.optimizers
-import asd_tools.schedulers
-from asd_tools.datasets import WaveCollator
-from asd_tools.trainer import OECTrainer
-from asd_tools.utils import count_params
-from asd_tools.utils import seed_everything
-from asd_tools.datasets import OutlierBalancedBatchSampler
-from asd_tools.datasets import OutlierWaveASDDataset
+import serial_oe
+import serial_oe.models
+import serial_oe.losses
+import serial_oe.optimizers
+import serial_oe.schedulers
+from serial_oe.datasets import WaveCollator
+from serial_oe.trainer import OECTrainer
+from serial_oe.utils import count_params
+from serial_oe.utils import seed_everything
+from serial_oe.datasets import BalancedBatchSampler
+from serial_oe.datasets import ASDDataset
 
 # set to avoid matplotlib error in CLI environment
 matplotlib.use("Agg")
@@ -34,7 +34,7 @@ matplotlib.use("Agg")
 def main():
     """Run training process."""
     parser = argparse.ArgumentParser(
-        description="Train outlier exposure model (See detail in asd_tools/bin/train.py)."
+        description="Train outlier exposure model (See detail in serial_oe/bin/train.py)."
     )
     parser.add_argument(
         "--pos_machine", type=str, required=True, help="Name of positive machine."
@@ -76,13 +76,6 @@ def main():
     )
     parser.add_argument(
         "--config", type=str, required=True, help="yaml format configuration file."
-    )
-    parser.add_argument(
-        "--outlier_scps",
-        default=[],
-        type=str,
-        nargs="*",
-        help="list of scp file of outlier dataset.",
     )
     parser.add_argument(
         "--valid_outlier_scps",
@@ -174,29 +167,23 @@ def main():
     for key, value in config.items():
         logging.info(f"{key} = {value}")
     # get dataset
-
-    train_dataset = OutlierWaveASDDataset(
+    train_dataset = ASDDataset(
         pos_machine_scp=args.train_pos_machine_scp,
         pos_anomaly_machine_scp=args.train_pos_anomaly_machine_scp,
         neg_machine_scps=args.train_neg_machine_scps,
         outlier_scps=args.outlier_scps,
         allow_cache=config.get("allow_cache", False),
-        augmentation_params=config.get("augmentation_params", {}),
         statistic_path=args.statistic_path,
-        in_sample_norm=config.get("in_sample_norm", False),
     )
-    logging.info(f"train outlier = {len(train_dataset.outlier_files)}.")
-    valid_dataset = OutlierWaveASDDataset(
+    valid_dataset = ASDDataset(
         pos_machine_scp=args.valid_pos_machine_scp,
         pos_anomaly_machine_scp="",
         neg_machine_scps=args.valid_neg_machine_scps,
         outlier_scps=args.valid_outlier_scps,
         allow_cache=True,
         statistic_path=args.statistic_path,
-        in_sample_norm=config.get("in_sample_norm", False),
     )
-    logging.info(f"valid outlier = {len(valid_dataset.outlier_files)}.")
-    train_balanced_batch_sampler = OutlierBalancedBatchSampler(
+    train_balanced_batch_sampler = BalancedBatchSampler(
         train_dataset,
         n_pos=config["n_pos"],
         n_neg=config["n_neg"],
@@ -205,7 +192,7 @@ def main():
         anomaly_as_neg=config.get("anomaly_as_neg", True),
         n_anomaly=config.get("n_anomaly_in_mini_batch", 0),
     )
-    valid_balanced_batch_sampler = OutlierBalancedBatchSampler(
+    valid_balanced_batch_sampler = BalancedBatchSampler(
         valid_dataset,
         n_pos=config["n_pos"],
         n_neg=config["n_pos"],
@@ -256,7 +243,7 @@ def main():
     }
 
     # define models and optimizers
-    model_class = getattr(asd_tools.models, config["model_type"])
+    model_class = getattr(serial_oe.models, config["model_type"])
     if config["pos_machine"] == "ToyConveyor":
         config["model_params"]["out_dim"] = 6
     model = model_class(**config["model_params"]).to(device)
@@ -264,22 +251,22 @@ def main():
     params_cnt = count_params(model)
     logging.info(f"Size of model is {params_cnt}.")
     criterion = {
-        "machine_loss": getattr(asd_tools.losses, config["machine_loss_type"],)(
+        "machine_loss": getattr(serial_oe.losses, config["machine_loss_type"],)(
             **config["machine_loss_params"]
         ).to(device),
-        "section_loss": getattr(asd_tools.losses, config["section_loss_type"],)(
+        "section_loss": getattr(serial_oe.losses, config["section_loss_type"],)(
             **config["section_loss_params"]
         ).to(device),
     }
     optimizer_class = getattr(
-        asd_tools.optimizers,
+        serial_oe.optimizers,
         config["optimizer_type"],
     )
     params_list = [{"params": model.parameters()}]
     metric_fc = None
     if config.get("metric_fc_type", None) is not None:
         metric_fc_class = getattr(
-            asd_tools.losses,
+            serial_oe.losses,
             config["metric_fc_type"],
         )
         metric_fc = metric_fc_class(**config["metric_fc_params"]).to(device)
@@ -288,7 +275,7 @@ def main():
     scheduler = None
     if config.get("scheduler_type", None) is not None:
         scheduler_class = getattr(
-            asd_tools.schedulers,
+            serial_oe.schedulers,
             config["scheduler_type"],
         )
         if config["scheduler_type"] == "OneCycleLR":

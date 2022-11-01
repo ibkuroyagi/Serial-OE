@@ -8,7 +8,7 @@ class WaveCollator(object):
     def __init__(
         self,
         sf=16000,
-        sec=3,
+        sec=7,
         pos_machine="fan",
         shuffle=True,
         use_is_normal=False,

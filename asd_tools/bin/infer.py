@@ -14,7 +14,7 @@ import matplotlib
 import numpy as np
 import pandas as pd
 import yaml
-from asd_tools.utils import seed_everything, zscore
+from serial_oe.utils import seed_everything, zscore
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import KernelDensity, LocalOutlierFactor, NearestNeighbors
 from sklearn.svm import OneClassSVM
@@ -43,19 +43,13 @@ def upper_mean(series):
 def main():
     """Run inference process."""
     parser = argparse.ArgumentParser(
-        description="Train outlier exposure model (See detail in asd_tools/bin/train.py)."
+        description="Train outlier exposure model (See detail in serial_oe/bin/train.py)."
     )
     parser.add_argument(
         "--pos_machine", type=str, required=True, help="Name of positive machine."
     )
     parser.add_argument(
         "--config", type=str, required=True, help="yaml format configuration file."
-    )
-    parser.add_argument(
-        "--use_10sec",
-        type=str,
-        default="false",
-        help="If true, use 10 second wav input.",
     )
     parser.add_argument(
         "--use_norm",
@@ -143,8 +137,6 @@ def main():
         post_cols = []
         checkpoint = checkpoint_dir.split("/")[-1]
         checkpoint += args.tail_name
-        if args.use_10sec == "true":
-            checkpoint += "_10sec"
         logging.info(f"checkpoint_dir:{checkpoint_dir}")
         valid_df = pd.read_csv(os.path.join(checkpoint_dir, checkpoint + "_valid.csv"))
         eval_df = pd.read_csv(os.path.join(checkpoint_dir, checkpoint + "_eval.csv"))
@@ -213,22 +205,18 @@ def main():
             post_cols.sort()
         columns = ["path", "section", "is_normal"] + post_cols
         logging.info(f"columns:{columns}")
-        agg_fc = (
-            ["median"]
-            if args.use_10sec == "true"
-            else ["max", "mean", "median", upper_mean]
+        agg_df = (
+            eval_df[columns].groupby("path").agg(["max", "mean", "median", upper_mean])
         )
-        agg_df = eval_df[columns].groupby("path").agg(agg_fc)
         agg_df = reset_columns(agg_df)
-        if args.use_10sec != "true":
-            del (
-                agg_df["is_normal_max"],
-                agg_df["is_normal_mean"],
-                agg_df["is_normal_upper_mean"],
-                agg_df["section_max"],
-                agg_df["section_mean"],
-                agg_df["section_upper_mean"],
-            )
+        del (
+            agg_df["is_normal_max"],
+            agg_df["is_normal_mean"],
+            agg_df["is_normal_upper_mean"],
+            agg_df["section_max"],
+            agg_df["section_mean"],
+            agg_df["section_upper_mean"],
+        )
         agg_df.rename(
             columns={"is_normal_median": "is_normal", "section_median": "section"},
             inplace=True,

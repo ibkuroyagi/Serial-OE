@@ -17,12 +17,12 @@ import yaml
 
 from torch.utils.data import DataLoader
 
-import asd_tools
-import asd_tools.losses
-import asd_tools.models
-from asd_tools.datasets import OutlierWaveASDDataset
-from asd_tools.datasets import WaveEvalCollator
-from asd_tools.utils import seed_everything
+import serial_oe
+import serial_oe.losses
+import serial_oe.models
+from serial_oe.datasets import ASDDataset
+from serial_oe.datasets import WaveEvalCollator
+from serial_oe.utils import seed_everything
 
 # set to avoid matplotlib error in CLI environment
 matplotlib.use("Agg")
@@ -31,7 +31,7 @@ matplotlib.use("Agg")
 def main():
     """Run training process."""
     parser = argparse.ArgumentParser(
-        description="Train outlier exposure model (See detail in asd_tools/bin/train.py)."
+        description="Train outlier exposure model (See detail in serial_oe/bin/train.py)."
     )
     parser.add_argument(
         "--valid_pos_machine_scp",
@@ -47,12 +47,6 @@ def main():
     )
     parser.add_argument(
         "--config", type=str, required=True, help="yaml format configuration file."
-    )
-    parser.add_argument(
-        "--use_10sec",
-        type=str,
-        default="false",
-        help="If true, use 10 second wav input.",
     )
     parser.add_argument(
         "--tail_name",
@@ -119,9 +113,6 @@ def main():
     config.update(vars(args))
     if "ToyConveyor" in args.valid_pos_machine_scp:
         config["model_params"]["out_dim"] = 6
-    if args.use_10sec == "true":
-        config["sec"] = 10
-        config["n_split"] = 1
     seed_everything(seed=config["seed"])
     config["batch_size"] = (
         config["n_pos"] + config["n_neg"] + config.get("n_anomaly", 0)
@@ -130,7 +121,7 @@ def main():
         logging.info(f"{key} = {value}")
 
     # get dataset
-    valid_dataset = OutlierWaveASDDataset(
+    valid_dataset = ASDDataset(
         pos_machine_scp=args.valid_pos_machine_scp,
         neg_machine_scps=[],
         outlier_scps=[],
@@ -157,7 +148,7 @@ def main():
         )
     }
     if os.path.isfile(args.eval_pos_machine_scp):
-        eval_dataset = OutlierWaveASDDataset(
+        eval_dataset = ASDDataset(
             pos_machine_scp=args.eval_pos_machine_scp,
             neg_machine_scps=[],
             outlier_scps=[],
@@ -177,12 +168,12 @@ def main():
     metric_fc = None
     if config.get("metric_fc_type", None) is not None:
         metric_fc_class = getattr(
-            asd_tools.losses,
+            serial_oe.losses,
             config["metric_fc_type"],
         )
         metric_fc = metric_fc_class(**config["metric_fc_params"])
     for checkpoint in args.checkpoints:
-        model_class = getattr(asd_tools.models, config["model_type"])
+        model_class = getattr(serial_oe.models, config["model_type"])
         model = model_class(**config["model_params"])
         state_dict = torch.load(checkpoint, map_location="cpu")
         model.load_state_dict(state_dict["model"])
@@ -278,10 +269,6 @@ def main():
 
             df = df[columns]
             csv_path = checkpoint.replace(".pkl", f"{args.tail_name}_{mode}.csv")
-            if args.use_10sec == "true":
-                csv_path = checkpoint.replace(
-                    ".pkl", f"{args.tail_name}_10sec_{mode}.csv"
-                )
             df.to_csv(csv_path, index=False)
             logging.info(f"Saved at {csv_path}")
 

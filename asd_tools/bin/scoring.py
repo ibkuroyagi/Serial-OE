@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 
 def get_args():
     parser = argparse.ArgumentParser(
-        description="Train outlier exposure model (See detail in asd_tools/bin/train.py)."
+        description="Train outlier exposure model (See detail in serial_oe/bin/train.py)."
     )
     parser.add_argument("--feature", type=str, default="", help="Type of feature.")
     parser.add_argument(

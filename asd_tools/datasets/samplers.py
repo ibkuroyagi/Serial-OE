@@ -1,10 +1,9 @@
 import random
 import numpy as np
 from torch.utils.data.sampler import BatchSampler
-import logging
 
 
-class OutlierBalancedBatchSampler(BatchSampler):
+class BalancedBatchSampler(BatchSampler):
     """BatchSampler = positive:negative+outlier."""
 
     def __init__(
@@ -29,7 +28,7 @@ class OutlierBalancedBatchSampler(BatchSampler):
             n_anomaly (int, optional): The number of anomaly sample in the mini-batch. Defaults to 1
         """
         self.n_pos_file = len(dataset.pos_files)
-        self.n_neg_file = len(dataset.neg_files) + len(dataset.outlier_files)
+        self.n_neg_file = len(dataset.neg_files)
         self.n_anomaly_file = len(dataset.pos_anomaly_files)
         self.anomaly_as_neg = anomaly_as_neg
         if anomaly_as_neg:

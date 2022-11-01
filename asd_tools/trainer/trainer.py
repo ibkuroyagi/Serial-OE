@@ -9,11 +9,11 @@ import torch
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import f1_score
 
-from tensorboardX import SummaryWriter
+from tensorboard import SummaryWriter
 
 
-from asd_tools.utils import mixup_for_outlier
-from asd_tools.utils import schedule_cos_phases
+from serial_oe.utils import mixup_for_outlier
+from serial_oe.utils import schedule_cos_phases
 
 
 class OECTrainer(object):
@@ -135,17 +135,10 @@ class OECTrainer(object):
         section_idx = machine.bool()
         machine = machine.unsqueeze(1)
         section = batch["section"].to(self.device)
-        if self.config["section_loss_type"] == "BCEWithLogitsLoss":
-            section = torch.nn.functional.one_hot(section, num_classes=7).float()[
-                :, : self.config["model_params"]["out_dim"]
-            ]
+        section = torch.nn.functional.one_hot(
+            section, num_classes=self.model.out_dim
+        ).float()
         wave = batch["wave"].to(self.device)
-        if self.config.get("PitchShift") is not None:
-            if np.random.rand() < self.config.get("apply_rate", 1.0):
-                from torchaudio.functional import pitch_shift
-
-                n_steps = np.random.normal(loc=0, scale=2, size=1)[0]
-                wave = pitch_shift(wave, n_steps=n_steps, **self.config["PitchShift"])
         if self.config.get("mixup_alpha", 0) > 0:
             if np.random.rand() < schedule_cos_phases(
                 max_step=self.config["train_max_epochs"] * self.steps_per_epoch,
@@ -166,10 +159,6 @@ class OECTrainer(object):
             / self.config["accum_grads"]
         )
         section_pred = y_["section"][section_idx]
-        if self.metric_fc is not None:
-            section_pred = self.metric_fc(
-                y_["embedding"][section_idx], section[section_idx]
-            )
         section_loss = (
             self.criterion["section_loss"](
                 section_pred,
@@ -181,10 +170,7 @@ class OECTrainer(object):
             self.config.get("machine_loss_lambda", 1) * machine_loss
             + self.config["section_loss_lambda"] * section_loss
         )
-
-        logging.debug(f"backward:{loss.item():.4f}")
         loss.backward()
-
         self.forward_count += 1
         if self.forward_count == self.config["accum_grads"]:
             self.total_train_loss["train/machine_loss"] += machine_loss.item()
@@ -211,7 +197,6 @@ class OECTrainer(object):
         for steps_per_epoch, batch in enumerate(self.data_loader["train"]):
             # train one step
             self._train_step(batch)
-
             # check whether training is finished
             if self.finish_train:
                 return
@@ -232,15 +217,12 @@ class OECTrainer(object):
 
     def _valid_step(self, batch):
         """Validate model one step."""
-        # for k, v in batch.items():
-        #     logging.info(f"{k}:{v.shape},{v}")
         machine = batch["machine"].to(self.device)
         section_idx = batch["machine"].bool()
         section = batch["section"].to(self.device)[section_idx]
-        if self.config["section_loss_type"] == "BCEWithLogitsLoss":
-            section = torch.nn.functional.one_hot(section, num_classes=7).float()[
-                :, : self.config["model_params"]["out_dim"]
-            ]
+        section = torch.nn.functional.one_hot(
+            section, num_classes=self.model.out_dim
+        ).float()
         with torch.no_grad():
             y_ = self.model(batch["wave"].to(self.device))
             machine_loss = (
@@ -248,8 +230,6 @@ class OECTrainer(object):
                 / self.config["accum_grads"]
             )
             section_pred = y_["section"][section_idx]
-            if self.metric_fc is not None:
-                section_pred = self.metric_fc(y_["embedding"][section_idx], section)
             section_loss = (
                 self.criterion["section_loss"](section_pred, section)
                 / self.config["accum_grads"]
@@ -258,8 +238,6 @@ class OECTrainer(object):
             if section_idx.sum() != 0:
                 loss += self.config["section_loss_lambda"] * section_loss
             self.forward_count += 1
-            # logging.info(f"machine_loss:{machine_loss.item()}")
-            # logging.info(f"section_loss:{section_loss.item()}")
             if self.forward_count == self.config["accum_grads"]:
                 self.total_valid_loss["valid/machine_loss"] += machine_loss.item()
                 if section_idx.sum() != 0:
@@ -269,7 +247,6 @@ class OECTrainer(object):
         self.epoch_valid_pred_machine = np.concatenate(
             [self.epoch_valid_pred_machine, y_["machine"].cpu().numpy()]
         )
-
         self.epoch_valid_y_machine = np.concatenate(
             [self.epoch_valid_y_machine, machine.cpu().numpy()[:, np.newaxis]]
         )
@@ -277,8 +254,7 @@ class OECTrainer(object):
             self.epoch_valid_pred_section = np.concatenate(
                 [self.epoch_valid_pred_section, section_pred.cpu().numpy()]
             )
-            if self.config["section_loss_type"] == "BCEWithLogitsLoss":
-                section = torch.argmax(section, dim=1)
+            section = torch.argmax(section, dim=1)
             self.epoch_valid_y_section = np.concatenate(
                 [self.epoch_valid_y_section, section.cpu().numpy()]
             )
@@ -286,8 +262,6 @@ class OECTrainer(object):
     def _valid_epoch(self):
         """Validate model one epoch."""
         self.model.eval()
-        if self.metric_fc is not None:
-            self.metric_fc.eval()
         for steps_per_epoch, batch in enumerate(self.data_loader["valid"]):
             self._valid_step(batch)
         # log
@@ -323,9 +297,7 @@ class OECTrainer(object):
         self.epoch_valid_pred_machine = np.empty((0, 1))
         self.epoch_valid_y_machine = np.empty((0, 1))
         self.epoch_valid_y_section = np.empty(0)
-        self.epoch_valid_pred_section = np.empty(
-            (0, self.config["model_params"]["out_dim"])
-        )
+        self.epoch_valid_pred_section = np.empty((0, self.model.out_dim))
         self.total_valid_loss = defaultdict(float)
 
     def _write_to_tensorboard(self, loss, steps_per_epoch=1):

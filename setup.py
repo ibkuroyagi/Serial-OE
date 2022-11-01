@@ -25,16 +25,16 @@ extras_require = {
 
 dirname = os.path.dirname(__file__)
 setup(
-    name="asd_tools",
+    name="serial_oe",
     version="0.0.0",
-    url="https://github.com/ibkuroyagi/dcase2022_task2.git",
+    url="https://github.com/ibkuroyagi/Serial-OE.git",
     author="Ibuki Kuroyanagi",
     author_email="kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp",
-    description="Anomaly Sound Detection implementation",
+    description="Anomalous Sound Detection using Serial method with Outlier Exposure",
     long_description=open(os.path.join(dirname, "README.md"), encoding="utf-8").read(),
     long_description_content_type="text/markdown",
-    license="MIT License",
-    packages=find_packages(include=["asd_tools*"]),
+    license="Apache License 2.0",
+    packages=find_packages(include=["serial_oe*"]),
     install_requires=install_requires,
     setup_requires=setup_requires,
     extras_require=extras_require,

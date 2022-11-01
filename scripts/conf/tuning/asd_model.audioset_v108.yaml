@@ -7,8 +7,6 @@ model_params:
   backbone: tf_efficientnet_b0_ns
   embedding_size: 128
   pretrained: true
-  use_pos: false
-  in_chans: 3
   n_fft: 2048
   hop_length: 256
   n_mels: 224
@@ -57,7 +55,7 @@ scheduler_params:
 #                    INTERVAL SETTING                     #
 ###########################################################
 train_max_epochs: 100 # Number of training steps.
-save_interval_epochs: 100 # Interval steps to save checkpoint.
+save_interval_epochs: 50 # Interval steps to save checkpoint.
 log_interval_epochs: 5 # Interval steps to record the training log.
 ###########################################################
 #                     OTHER SETTING                       #
