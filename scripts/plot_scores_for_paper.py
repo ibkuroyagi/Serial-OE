@@ -69,9 +69,11 @@ for l, no in enumerate(no_list):
                     * 100
                 )
 use_one_fig = True
+fontsize = 19
+figsize = (8, 9)
 title_no = ""
 if use_one_fig:
-    fig, ax = plt.subplots(figsize=(8, 7))
+    fig, ax = plt.subplots(figsize=figsize)
 for l, method in enumerate(method_list):
     yerr_se = anomaly_score_list[l].mean(0).std(1) / np.sqrt(len(seed_list))
     x = np.arange(len(n_anomaly_list))
@@ -102,10 +104,12 @@ ax.errorbar(
     mfc="None",
     mec="k",
 )
-ax.set_xlabel("The ratio of anomalous data to normal data [%]", fontsize=16)
-ax.set_ylabel("The average AUC [%]", fontsize=16)
+plt.xticks(fontsize=fontsize)
+plt.yticks(fontsize=fontsize)
+ax.set_xlabel("The ratio of anomalous data to normal data [%]", fontsize=fontsize)
+ax.set_ylabel("The average AUC [%]", fontsize=fontsize)
 ax.grid()
-plt.legend(fontsize=16)
+plt.legend(fontsize=fontsize)
 plt.tight_layout()
 plt.savefig(f"exp/fig/paper_{ex_name}_aAUC_all.png")
 # %%
@@ -156,7 +160,7 @@ for l, no in enumerate(no_list):
                 )
 use_one_fig = True
 if use_one_fig:
-    fig, ax = plt.subplots(figsize=(8, 7))
+    fig, ax = plt.subplots(figsize=figsize)
 for l, no in enumerate(method_list):
     yerr_se = anomaly_score_list[l].mean(0).std(1) / np.sqrt(len(seed_list))
     x = np.arange(len(n_anomaly_list))
@@ -187,17 +191,17 @@ ax.errorbar(
     mfc="None",
     mec="k",
 )
-ax.set_xlabel("The ratio of anomalous data to normal data [%]", fontsize=16)
-ax.set_ylabel("The minimum AUC [%]", fontsize=16)
+plt.xticks(fontsize=fontsize)
+plt.yticks(fontsize=fontsize)
+ax.set_xlabel("The ratio of anomalous data to normal data [%]", fontsize=fontsize)
+ax.set_ylabel("The minimum AUC [%]", fontsize=fontsize)
 ax.grid()
-plt.legend(fontsize=16)
+plt.legend(fontsize=fontsize)
 plt.tight_layout()
 plt.savefig(f"exp/fig/paper_{ex_name}_mAUC_all.png")
 
 # %%
 # スコアの比を計算
-# DDCSAD のスコアと一緒にプロット
-# 異常スコアの変遷をエラーバー(標準誤差,SE)をプロットする
 ex_name = "use"
 ex_name = "contaminate"
 
