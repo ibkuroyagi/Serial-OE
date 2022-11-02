@@ -1,4 +1,3 @@
-import logging
 import math
 import torch
 import numpy as np
@@ -18,10 +17,6 @@ def mixup_for_outlier(
     ).to(X.device)[:, None]
     perm = torch.randperm(batch_size).to(X.device)
     mixed_X = lam * X + (1 - lam) * X[perm]
-    logging.debug(
-        f"lam:{lam.shape}, prem:{perm.shape}, Y:{Y.shape}, Y[perm]:{Y[perm].shape}, "
-        f"lam*Y:{(lam*Y).shape}, (1 - lam) * Y[perm]:{((1 - lam) * Y[perm]).shape}"
-    )
     mixed_Y = lam * Y + (1 - lam) * Y[perm]
     section[0 == Y.squeeze(1)] = 0
     mixed_section = lam * section + (1 - lam) * section[perm]

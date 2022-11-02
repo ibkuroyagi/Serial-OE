@@ -42,20 +42,12 @@ def upper_mean(series):
 
 def main():
     """Run inference process."""
-    parser = argparse.ArgumentParser(
-        description="Train outlier exposure model (See detail in serial_oe/bin/train.py)."
-    )
+    parser = argparse.ArgumentParser(description="Inference by anomalous detectors.")
     parser.add_argument(
         "--pos_machine", type=str, required=True, help="Name of positive machine."
     )
     parser.add_argument(
         "--config", type=str, required=True, help="yaml format configuration file."
-    )
-    parser.add_argument(
-        "--use_norm",
-        type=str,
-        default="",
-        help="If '_norm', normalize all input features.",
     )
     parser.add_argument("--feature", type=str, default="", help="Type of feature.")
     parser.add_argument(
@@ -150,11 +142,6 @@ def main():
                             feature_cols
                         ]
                     input_eval = eval_df[eval_df["section"] == section_id][feature_cols]
-                    if args.use_norm == "_norm":
-                        input_valid_mean = input_valid.mean()
-                        input_valid_std = input_valid.std(ddof=0)
-                        input_valid = (input_valid - input_valid_mean) / input_valid_std
-                        input_eval = (input_eval - input_valid_mean) / input_valid_std
                     for hp in hyper_params:
                         lof = LocalOutlierFactor(n_neighbors=hp, novelty=True)
                         lof.fit(input_valid)
@@ -220,9 +207,7 @@ def main():
             dev_idx |= agg_df["section"] == sec
         agg_df.loc[dev_idx, "mode"] = "dev"
         agg_df.loc[~dev_idx, "mode"] = "eval"
-        agg_path = os.path.join(
-            checkpoint_dir, checkpoint + f"{args.feature}{args.use_norm}_agg.csv"
-        )
+        agg_path = os.path.join(checkpoint_dir, checkpoint + f"{args.feature}_agg.csv")
         agg_df.to_csv(agg_path, index=False)
         logging.info(f"Successfully saved {agg_path}.")
 

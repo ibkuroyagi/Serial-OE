@@ -28,9 +28,8 @@ q/
 # recipe related
 scripts/data
 scripts/downloads
-scripts/dump*
-scripts/exp*
-scripts/*ipynb
+scripts/dump
+scripts/exp
 # tools related
 tools/pytorch-image-models/
 tools/venv/

@@ -30,7 +30,6 @@ class OECTrainer(object):
         config,
         device=torch.device("cpu"),
         train=False,
-        metric_fc=None,
     ):
         """Initialize trainer."""
         self.steps = steps
@@ -43,7 +42,6 @@ class OECTrainer(object):
         self.config = config
         self.device = device
         self.train = train
-        self.metric_fc = metric_fc
         if train:
             self.writer = SummaryWriter(config["outdir"])
         self.finish_train = False
@@ -91,8 +89,6 @@ class OECTrainer(object):
             state_dict["optimizer"] = self.optimizer.state_dict()
             if self.scheduler is not None:
                 state_dict["scheduler"] = self.scheduler.state_dict()
-        if self.metric_fc is not None:
-            state_dict["metric_fc"] = self.metric_fc.weight.cpu()
         if not os.path.exists(os.path.dirname(checkpoint_path)):
             os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
         torch.save(state_dict, checkpoint_path)
@@ -121,12 +117,6 @@ class OECTrainer(object):
                 state_dict.get("scheduler", None) is not None
             ):
                 self.scheduler.load_state_dict(state_dict["scheduler"])
-            if self.metric_fc is not None:
-                tmp = self.metric_fc.weight
-                self.metric_fc.weight = torch.nn.Parameter(state_dict["metric_fc"])
-                self.metric_fc = self.metric_fc.to(self.device)
-                if (tmp - self.metric_fc.weight).sum() != 0:
-                    logging.info("Successfully load weights of metric_fc.")
 
     def _train_step(self, batch):
         """Train model one step."""

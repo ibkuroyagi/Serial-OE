@@ -4,7 +4,6 @@
 
 """Utility functions."""
 
-import fnmatch
 import logging
 import os
 import random
@@ -13,30 +12,6 @@ import sys
 import h5py
 import numpy as np
 import torch
-from scipy.stats import hmean
-from sklearn.metrics import roc_auc_score
-
-
-def find_files(root_dir, query="*.wav", include_root_dir=True):
-    """Find files recursively.
-
-    Args:
-        root_dir (str): Root root_dir to find.
-        query (str): Query to find.
-        include_root_dir (bool): If False, root_dir name is not included.
-
-    Returns:
-        list: List of found filenames.
-
-    """
-    files = []
-    for root, _, filenames in os.walk(root_dir, followlinks=True):
-        for filename in fnmatch.filter(filenames, query):
-            files.append(os.path.join(root, filename))
-    if not include_root_dir:
-        files = [file_.replace(root_dir + "/", "") for file_ in files]
-
-    return files
 
 
 def read_hdf5(hdf5_name, hdf5_path=None, read_random=False):
@@ -122,40 +97,5 @@ def seed_everything(seed=1234):
     torch.backends.cudnn.deterministic = True
 
 
-def mixup_apply_rate(max_step=8000, step=0, max_rate=1.0, min_rate=0.0, mode="const"):
-    """Mixup apply rate.
-
-    Args:
-        max_step (int, optional): Defaults to 8000.
-        step (int, optional): Defaults to 0.
-        max_rate (float, optional): Defaults to 1.0.
-        min_rate (float, optional): Defaults to 0.0.
-        mode (str, optional): Defaults to "const".
-    """
-    if mode == "const":
-        return max(min(max_rate, 1.0), 0.0)
-    elif mode == "cos":
-        tmp = np.cos(np.pi / 2 * step / max_step)
-        p = tmp * (max_rate - min_rate) + min_rate
-        return p
-    elif mode == "sin":
-        tmp = np.sin(np.pi * step / max_step)
-        p = tmp * (max_rate - min_rate) + min_rate
-        return p
-
-
-def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
-
-
 def zscore(pred):
     return (pred - pred.mean()) / pred.std()
-
-
-def hauc(y_true, y_pred, sections):
-    score_list = []
-    for i in range(3):
-        idx = sections == i
-        score_list.append(roc_auc_score(y_true[idx], y_pred[idx]))
-        score_list.append(roc_auc_score(y_true[idx], y_pred[idx], max_fpr=0.1))
-    return hmean(score_list), np.array(score_list).std()

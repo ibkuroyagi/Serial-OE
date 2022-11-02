@@ -20,7 +20,7 @@ from serial_oe.utils import write_hdf5
 def main():
     """Run preprocessing process."""
     parser = argparse.ArgumentParser(
-        description="Preprocess audio and then extract features."
+        description="Preprocess audio and extract features."
     )
     parser.add_argument(
         "--download_dir",
@@ -104,11 +104,6 @@ def main():
         if args.download_dir.endswith(".scp"):
             x_len = len(x) - int(sr * sec)
             for i in range(5):
-                # if os.path.isfile(save_path):
-                #     hdf5_file = h5py.File(save_path, "r")
-                #     if f"wave{i}" in hdf5_file:
-                #         logging.warning(f"wave{i} has already existed in {save_path}.")
-                #         continue
                 start_idx = (x_len // 5) * i
                 end_idx = start_idx + int(sr * sec)
                 tmp_wave = x[start_idx:end_idx]

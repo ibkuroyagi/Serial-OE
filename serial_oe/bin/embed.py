@@ -30,9 +30,7 @@ matplotlib.use("Agg")
 
 def main():
     """Run training process."""
-    parser = argparse.ArgumentParser(
-        description="Train outlier exposure model (See detail in serial_oe/bin/train.py)."
-    )
+    parser = argparse.ArgumentParser(description="Extract features from trained model.")
     parser.add_argument(
         "--valid_pos_machine_scp",
         default=None,

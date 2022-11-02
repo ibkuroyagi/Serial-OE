@@ -18,12 +18,6 @@ def get_args():
         description="Split training data and write the path."
     )
     parser.add_argument(
-        "--dataset",
-        default="dcase",
-        type=str,
-        help="Select one of audioset, uav or idmt.",
-    )
-    parser.add_argument(
         "--dumpdir",
         default=[],
         type=str,
@@ -142,7 +136,7 @@ def write_dev(args):
 
 if __name__ == "__main__":
     args = get_args()
-    if (args.valid_ratio == 0) and (args.dataset == "dcase"):
+    if args.valid_ratio == 0:
         write_eval(args)
-    elif (args.valid_ratio > 0) and (args.dataset == "dcase"):
+    elif args.valid_ratio > 0:
         write_dev(args)
