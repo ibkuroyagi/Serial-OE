@@ -9,11 +9,11 @@ stage=0      # stage to start
 stop_stage=5 # stage to stop
 verbose=1    # verbosity level (lower is less info)
 n_gpus=1     # number of gpus in training
-conf=conf/tuning/asd_model.v020.yaml
+conf=conf/tuning/serial_oe.normal.yaml
 resume=""
 pos_machine=fan
-tag=v020 # tag for directory to save model
-seed=-1  # Seed of scp file.
+tag=serial_oe.normal # tag for directory to save model
+seed=-1              # Seed of scp file.
 # directory path setting
 download_dir=downloads
 dumpdir=dump # directory to dump features
@@ -27,7 +27,7 @@ epochs="50 100"
 checkpoints=""
 feature=_embed # "_none": use output of ID classification.
 # _embed: use only embedding features in training an anomalous detector.
-# _prediction: use only predictions in training an anomalous detector.
+# _prediction: use machine prediction and ID predictions in training an anomalous detector.
 
 log() {
     local fname=${BASH_SOURCE[1]##*/}
@@ -57,6 +57,33 @@ fi
 if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     log "Download data."
     local/download_data.sh "${download_dir}"
+    # To use the eval directory of the DCASE 2020 Task2 Challenge dataset,
+    # put it in the dev directory in the same format.
+
+    # downloads
+    # |--dev
+    #    |--fan
+    #    |  |--test
+    #    |  |  |--anomaly_id_00_00000000.wav
+    #    |  |  |--anomaly_id_00_00000001.wav
+    #    |  |  |--**
+    #    |  |  |--normal_id_06_00000099.wav
+    #    |  |--train
+    #    |  |  |--normal_id_00_00000000.wav
+    #    |  |  |--normal_id_00_00000001.wav
+    #    |  |  |--**
+    #    |  |  |--normal_id_06_00000914.wav
+    #    |--pump
+    #    |  |--test
+    #    |  |  |--anomaly_id_00_00000000.wav
+    #    |  |  |--anomaly_id_00_00000001.wav
+    #    |  |  |--**
+    #    |  |  |--normal_id_06_00000099.wav
+    #    |  |--train
+    #    |  |  |--normal_id_00_00000000.wav
+    #    |  |  |--normal_id_00_00000001.wav
+    #    |  |  |--**
+    #    |  |  |--normal_id_06_00000914.wav
 fi
 
 if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
@@ -81,7 +108,6 @@ if [ "${stage}" -le 1 ] && [ "${stop_stage}" -ge 1 ]; then
 fi
 
 end_str+="_${valid_ratio}"
-
 if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
     log "Stage 2: Write scp."
     log "Split training data."
@@ -108,7 +134,6 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
 fi
 
 tag+="${end_str}"
-
 if [ ${seed} -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
     log "For simple ASD model's seed : ${seed}."
     tag+="_seed${seed}"

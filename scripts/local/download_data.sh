@@ -74,3 +74,12 @@ for machine in "${available_machine_types[@]}"; do
     log "Evaluation dataset was already unzipped. Skipped."
   fi
 done
+
+if [ ! -e "${download_dir}/eval/eval_data_list.csv" ]; then
+  cd "${download_dir}/eval"
+  wget "https://zenodo.org/record/3951620/files/eval_data_list.csv"
+  cd ../..
+  log "Successfully downloaded evaluation data list."
+else
+  log "Evaluation data list was already downloaded. Skipped."
+fi

@@ -12,8 +12,34 @@ $ git clone https://github.com/ibkuroyagi/Serial-OE.git
 $ cd Serial-OE/tools
 $ make
 ```
-
-
+## Dataset
+To use the eval directory of the DCASE 2020 Task2 Challenge dataset, put it in the dev directory in the same format.
+```
+downloads
+|--dev
+   |--fan
+   |  |--test
+   |  |  |--anomaly_id_00_00000000.wav
+   |  |  |--anomaly_id_00_00000001.wav
+   |  |  |--**
+   |  |  |--normal_id_06_00000099.wav
+   |  |--train
+   |  |  |--normal_id_00_00000000.wav
+   |  |  |--normal_id_00_00000001.wav
+   |  |  |--**
+   |  |  |--normal_id_06_00000914.wav
+   |--pump
+   |  |--test
+   |  |  |--anomaly_id_00_00000000.wav
+   |  |  |--anomaly_id_00_00000001.wav
+   |  |  |--**
+   |  |  |--normal_id_06_00000099.wav
+   |  |--train
+   |  |  |--normal_id_00_00000000.wav
+   |  |  |--normal_id_00_00000001.wav
+   |  |  |--**
+   |  |  |--normal_id_06_00000914.wav
+```
 ## Recipe
 To run the recipe, please follow the below instruction.
 

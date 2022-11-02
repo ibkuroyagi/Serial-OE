@@ -78,13 +78,6 @@ def main():
         "--config", type=str, required=True, help="yaml format configuration file."
     )
     parser.add_argument(
-        "--valid_outlier_scps",
-        default=[],
-        type=str,
-        nargs="*",
-        help="list of scp file of validation outlier dataset.",
-    )
-    parser.add_argument(
         "--statistic_path",
         type=str,
         default="",
@@ -171,7 +164,6 @@ def main():
         pos_machine_scp=args.train_pos_machine_scp,
         pos_anomaly_machine_scp=args.train_pos_anomaly_machine_scp,
         neg_machine_scps=args.train_neg_machine_scps,
-        outlier_scps=args.outlier_scps,
         allow_cache=config.get("allow_cache", False),
         statistic_path=args.statistic_path,
     )
@@ -179,7 +171,6 @@ def main():
         pos_machine_scp=args.valid_pos_machine_scp,
         pos_anomaly_machine_scp="",
         neg_machine_scps=args.valid_neg_machine_scps,
-        outlier_scps=args.valid_outlier_scps,
         allow_cache=True,
         statistic_path=args.statistic_path,
     )
@@ -263,14 +254,6 @@ def main():
         config["optimizer_type"],
     )
     params_list = [{"params": model.parameters()}]
-    metric_fc = None
-    if config.get("metric_fc_type", None) is not None:
-        metric_fc_class = getattr(
-            serial_oe.losses,
-            config["metric_fc_type"],
-        )
-        metric_fc = metric_fc_class(**config["metric_fc_params"]).to(device)
-        params_list.append({"params": metric_fc.parameters()})
     optimizer = optimizer_class(params_list, **config["optimizer_params"])
     scheduler = None
     if config.get("scheduler_type", None) is not None:
@@ -301,7 +284,6 @@ def main():
         config=config,
         device=device,
         train=True,
-        metric_fc=metric_fc,
     )
 
     # resume from checkpoint

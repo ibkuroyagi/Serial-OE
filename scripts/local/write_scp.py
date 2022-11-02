@@ -33,8 +33,13 @@ def get_args():
     parser.add_argument(
         "--valid_ratio",
         type=float,
-        default=0.1,
+        default=0.15,
         help="Ratio of validation dataset.",
+    )
+    parser.add_argument(
+        "--max_anomaly_pow",
+        type=int,
+        default=7,
     )
     return parser.parse_args()
 

@@ -49,11 +49,6 @@ def main():
         "--config", type=str, required=True, help="yaml format configuration file."
     )
     parser.add_argument(
-        "--tail_name",
-        type=str,
-        default="",
-    )
-    parser.add_argument(
         "--statistic_path",
         type=str,
         default="",
@@ -124,10 +119,8 @@ def main():
     valid_dataset = ASDDataset(
         pos_machine_scp=args.valid_pos_machine_scp,
         neg_machine_scps=[],
-        outlier_scps=[],
         allow_cache=True,
         statistic_path=args.statistic_path,
-        in_sample_norm=config.get("in_sample_norm", False),
     )
     logging.info(f"The number of validation files = {len(valid_dataset)}.")
     logging.info(f"pos = {len(valid_dataset.pos_files)}.")
@@ -151,10 +144,8 @@ def main():
         eval_dataset = ASDDataset(
             pos_machine_scp=args.eval_pos_machine_scp,
             neg_machine_scps=[],
-            outlier_scps=[],
             allow_cache=True,
             statistic_path=args.statistic_path,
-            in_sample_norm=config.get("in_sample_norm", False),
         )
         logging.info(f"The number of evaluation files = {len(eval_dataset)}.")
         loader_dict["eval"] = DataLoader(
@@ -164,14 +155,6 @@ def main():
             num_workers=config["num_workers"],
             pin_memory=config["pin_memory"],
         )
-
-    metric_fc = None
-    if config.get("metric_fc_type", None) is not None:
-        metric_fc_class = getattr(
-            serial_oe.losses,
-            config["metric_fc_type"],
-        )
-        metric_fc = metric_fc_class(**config["metric_fc_params"])
     for checkpoint in args.checkpoints:
         model_class = getattr(serial_oe.models, config["model_type"])
         model = model_class(**config["model_params"])
@@ -185,13 +168,6 @@ def main():
             f"Epochs:{state_dict['epochs']}, "
             f"BEST loss:{state_dict['best_loss']}"
         )
-        if "metric_fc" in state_dict.keys():
-            metric_fc.weight = torch.nn.Parameter(state_dict["metric_fc"])
-            metric_fc = metric_fc.to(device)
-            metric_fc.eval()
-            logging.info(
-                f"Successfully load weights of metric_fc:{metric_fc.weight.shape}."
-            )
         for mode, loader in loader_dict.items():
             pred_machine = np.empty((0, 1))
             pred_section = np.empty((0, config["model_params"]["out_dim"]))
@@ -205,11 +181,6 @@ def main():
                 for i in range(config["n_split"]):
                     with torch.no_grad():
                         y_ = model(batch[f"X{i}"].to(device))
-                        if metric_fc is not None:
-                            y_["section"] = metric_fc(
-                                y_["embedding"],
-                                torch.tensor(batch["section"]).to(device),
-                            )
                     pred_machine = np.concatenate(
                         [pred_machine, y_["machine"].cpu().numpy()], axis=0
                     )
@@ -268,7 +239,7 @@ def main():
             df[pred_section_cols] = pred_section
 
             df = df[columns]
-            csv_path = checkpoint.replace(".pkl", f"{args.tail_name}_{mode}.csv")
+            csv_path = checkpoint.replace(".pkl", f"_{mode}.csv")
             df.to_csv(csv_path, index=False)
             logging.info(f"Saved at {csv_path}")
 

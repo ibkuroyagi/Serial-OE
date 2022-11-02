@@ -59,11 +59,6 @@ def main():
     )
     parser.add_argument("--feature", type=str, default="", help="Type of feature.")
     parser.add_argument(
-        "--tail_name",
-        type=str,
-        default="",
-    )
-    parser.add_argument(
         "--checkpoints",
         default=[],
         type=str,
@@ -136,7 +131,6 @@ def main():
     for checkpoint_dir in checkpoint_dirs:
         post_cols = []
         checkpoint = checkpoint_dir.split("/")[-1]
-        checkpoint += args.tail_name
         logging.info(f"checkpoint_dir:{checkpoint_dir}")
         valid_df = pd.read_csv(os.path.join(checkpoint_dir, checkpoint + "_valid.csv"))
         eval_df = pd.read_csv(os.path.join(checkpoint_dir, checkpoint + "_eval.csv"))

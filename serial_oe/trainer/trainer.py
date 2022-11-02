@@ -1,15 +1,14 @@
 import logging
 import os
-
-from tqdm import tqdm
 from collections import defaultdict
+from tqdm import tqdm
 
 import numpy as np
 import torch
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import f1_score
 
-from tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 
 
 from serial_oe.utils import mixup_for_outlier
@@ -135,9 +134,9 @@ class OECTrainer(object):
         section_idx = machine.bool()
         machine = machine.unsqueeze(1)
         section = batch["section"].to(self.device)
-        section = torch.nn.functional.one_hot(
-            section, num_classes=self.model.out_dim
-        ).float()
+        section = torch.nn.functional.one_hot(section, num_classes=7).float()[
+            :, : self.model.out_dim
+        ]  # To avoid ToyConveyor's error.
         wave = batch["wave"].to(self.device)
         if self.config.get("mixup_alpha", 0) > 0:
             if np.random.rand() < schedule_cos_phases(
@@ -220,9 +219,9 @@ class OECTrainer(object):
         machine = batch["machine"].to(self.device)
         section_idx = batch["machine"].bool()
         section = batch["section"].to(self.device)[section_idx]
-        section = torch.nn.functional.one_hot(
-            section, num_classes=self.model.out_dim
-        ).float()
+        section = torch.nn.functional.one_hot(section, num_classes=7).float()[
+            :, : self.model.out_dim
+        ]  # To avoid ToyConveyor's error.
         with torch.no_grad():
             y_ = self.model(batch["wave"].to(self.device))
             machine_loss = (
