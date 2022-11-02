@@ -51,7 +51,7 @@ $ cd scripts
 $ ./job.sh
 
 # You can change config via command line
-$ ./job.sh --no <the_number_of_your_customized_yaml_config>
+$ ./job.sh --model_name serial_or.utilize --n_anomaly 16
 
 # You can select the stage to start and stop
 $ ./job.sh --stage 1 --start_stage 3

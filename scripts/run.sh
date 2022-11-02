@@ -20,8 +20,8 @@ dumpdir=dump # directory to dump features
 expdir=exp
 # training related setting
 valid_ratio=0.15
-max_anomaly_pow=6
-n_anomaly=-1 # -1: eval.scp, 0>=: eval_max*_seed*.scp,
+max_anomaly_pow=6 # The number of anomaly sample for training. 2**(6-1) = 32
+n_anomaly=-1      # -1: eval.scp, 0>=: eval_max*_seed*.scp
 # inference related setting
 epochs="50 100"
 checkpoints=""
@@ -61,7 +61,7 @@ if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     # put it in the dev directory in the same format.
 
     # downloads
-    # |--dev
+    # |--dev  (We expect dev directory contain all IDs {00,01,..,06}.)
     #    |--fan
     #    |  |--test
     #    |  |  |--anomaly_id_00_00000000.wav
@@ -117,7 +117,6 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
         ${train_cmd} "${dumpdir}/${train_set}/write_scp${end_str}.log" \
             python local/write_scp.py \
             --dumpdir ${dumpdir}/${train_set} \
-            --dataset "dcase" \
             --valid_ratio "${valid_ratio}"
         log "Successfully splited ${dumpdir}/${train_set} train and valid data."
         log "Scp files are in train${end_str}.scp and train${end_str}.scp."
@@ -126,7 +125,6 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
         ${train_cmd} "${dumpdir}/${eval_set}/write_scp.log" \
             python local/write_scp.py \
             --dumpdir "${dumpdir}/${eval_set}" \
-            --dataset "dcase" \
             --max_anomaly_pow "${max_anomaly_pow}" \
             --valid_ratio 0
         log "Successfully write ${dumpdir}/${eval_set}/eval.scp."
