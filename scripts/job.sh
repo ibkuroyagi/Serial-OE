@@ -2,12 +2,15 @@
 
 stage=1
 start_stage=3
-no=v020
+
+# training related
 valid_ratio=0.15
-# anomaly related
-max_anomaly_pow=6
-n_anomaly=-1
+model_name=serial_oe.normal
 seed=0
+# anomaly related
+n_anomaly=-1 # If you train the *.normal.yaml, you should set n_anomaly=<-1.
+# If you train the *.{utilize,contaminated}.yaml, you should set n_anomaly=>0.
+
 # inference related
 feature=_embed
 # shellcheck disable=SC1091
@@ -15,22 +18,22 @@ feature=_embed
 # shellcheck disable=SC1091
 . utils/original_funcs.sh || exit 1
 available_gpus=15
-epochs="100"
+epochs="50 100"
 
 set -euo pipefail
 machines=("fan" "pump" "slider" "ToyCar" "ToyConveyor" "valve")
-# machines=("valve")
+# machines=("ToyConveyor")
 # machines=("pump" "slider" "ToyCar" "ToyConveyor" "valve")
 resume=""
-tag=${no}
+tag=${model_name}
 if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
     for machine in "${machines[@]}"; do
         slurm_gpu_scheduler "${available_gpus}"
-        log "Start model training ${machine}/${no}."
-        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}${no}" ./run.sh \
+        log "Start model training ${machine}.${model_name}."
+        sbatch --mail-type=END --mail-user=kuroyanagi.ibuki@g.sp.m.is.nagoya-u.ac.jp -J "${machine}.${model_name}" ./run.sh \
             --stage "${start_stage}" \
             --stop_stage "5" \
-            --conf "conf/tuning/asd_model.${no}.yaml" \
+            --conf "conf/tuning/${model_name}.yaml" \
             --pos_machine "${machine}" \
             --resume "${resume}" \
             --tag "${tag}" \
@@ -43,15 +46,15 @@ if [ "${stage}" -le 1 ] && [ "${stage}" -ge 1 ]; then
 fi
 
 if [ "${stage}" -le 2 ] && [ "${stage}" -ge 2 ]; then
-    tag=${no}_${valid_ratio}
+    tag=${model_name}_${valid_ratio}
     if [ ${seed} -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
         tag+="_seed${seed}"
     fi
     if [ ${n_anomaly} -ge 0 ]; then
-        tag+="_anomaly${n_anomaly}_max${max_anomaly_pow}_seed${seed}"
+        tag+="_anomaly${n_anomaly}_seed${seed}"
     fi
     ./local/scoring.sh \
-        --no "${tag}" \
+        --tag "${tag}" \
         --feature "${feature}" \
         --epochs "${epochs}"
 fi
