@@ -8,7 +8,7 @@ import torch
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import f1_score
 
-from tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 
 from serial_oe.utils import mixup_for_outlier
