@@ -21,13 +21,13 @@ machine_loss_type: BCEWithLogitsLoss
 machine_loss_params:
   reduction: mean
 
-section_loss_type: BCEWithLogitsLoss
-section_loss_params:
+product_loss_type: BCEWithLogitsLoss
+product_loss_params:
   reduction: mean
 
-section_loss_lambda: 0.0
+product_loss_lambda: 0.0
 machine_loss_lambda: 1.0
-use_neg_section_as_zero: false
+use_neg_product_as_zero: false
 # mixup related
 mixup_alpha: 0.2
 ###########################################################

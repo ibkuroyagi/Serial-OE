@@ -68,7 +68,7 @@ class ASDModel(nn.Module):
             nn.Linear(self.embedding_size, self.embedding_size, bias=True),
         )
         self.machine_head = nn.Linear(1, 1, bias=True)
-        self.section_head = nn.Linear(self.embedding_size, out_dim, bias=False)
+        self.product_head = nn.Linear(self.embedding_size, out_dim, bias=False)
 
     def forward(self, input):
         x = self.melspectrogram(input).unsqueeze(1)
@@ -78,10 +78,10 @@ class ASDModel(nn.Module):
         machine = self.machine_head(
             torch.pow(embedding, 2).sum(dim=1).unsqueeze(1) / self.embedding_size
         )
-        section = self.section_head(embedding)
+        product = self.product_head(embedding)
         output_dict = {
             "embedding": embedding,
             "machine": machine,
-            "section": section,
+            "product": product,
         }
         return output_dict

@@ -26,7 +26,7 @@ class WaveCollator(object):
 
     def __call__(self, batch):
         """Convert into batch tensors."""
-        wave_batch, machine_batch, section_batch = [], [], []
+        wave_batch, machine_batch, product_batch = [], [], []
         if self.use_is_normal:
             is_normal_batch = []
         for b in batch:
@@ -48,15 +48,15 @@ class WaveCollator(object):
             else:
                 machine = int(b["machine"] == self.pos_machine)
             machine_batch.append(machine)
-            section_batch.append(b["section"])
+            product_batch.append(b["product"])
             if self.use_is_normal:
                 is_normal_batch.append(b["is_normal"])
 
         items = {
             "wave": torch.stack(wave_batch),
             "machine": torch.tensor(machine_batch, dtype=torch.float),
-            "section": torch.tensor(
-                np.array(section_batch).flatten(), dtype=torch.long
+            "product": torch.tensor(
+                np.array(product_batch).flatten(), dtype=torch.long
             ),
         }
         if self.use_is_normal:
@@ -109,7 +109,7 @@ class WaveEvalCollator(object):
                 ]
                 items[f"X{i}"] = torch.stack(wave_batch)
         items["machine"] = np.array([b["machine"] for b in batch])
-        items["section"] = np.array([b["section"] for b in batch])
+        items["product"] = np.array([b["product"] for b in batch])
         items["path"] = np.array([b["path"] for b in batch])
         if self.is_label:
             items["is_normal"] = np.array([b["is_normal"] for b in batch])

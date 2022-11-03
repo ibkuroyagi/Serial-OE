@@ -80,7 +80,7 @@ def main(args):
 
     agg_df = pd.read_csv(args.agg_checkpoints[0])
     post_processes = list(agg_df.columns)
-    for rm in ["path", "is_normal", "section", "mode"]:
+    for rm in ["path", "is_normal", "product", "mode"]:
         post_processes.remove(rm)
     columns = [
         "path",
@@ -114,28 +114,28 @@ def main(args):
         agg_df = pd.read_csv(agg_path)
         machine = agg_path.split("/")[1]
         if machine == "ToyCar":
-            dev_sections = [0, 1, 2, 3]
-            eval_sections = [4, 5, 6]
+            dev_products = [0, 1, 2, 3]
+            eval_products = [4, 5, 6]
         elif machine == "ToyConveyor":
-            dev_sections = [0, 1, 2]
-            eval_sections = [3, 4, 5]
+            dev_products = [0, 1, 2]
+            eval_products = [3, 4, 5]
         else:
-            dev_sections = [0, 2, 4, 6]
-            eval_sections = [1, 3, 5]
-        sections = {"dev": dev_sections, "eval": eval_sections}
+            dev_products = [0, 2, 4, 6]
+            eval_products = [1, 3, 5]
+        products = {"dev": dev_products, "eval": eval_products}
         for post_process in post_processes:
             for mode in modes:
                 auc_list = []
                 pauc_list = []
                 mauc = 1.1
-                for section in sections[mode]:
-                    target_idx = agg_df["section"] == section
+                for product in products[mode]:
+                    target_idx = agg_df["product"] == product
                     auc = roc_auc_score(
                         1 - agg_df.loc[target_idx, "is_normal"],
                         -agg_df.loc[target_idx, post_process],
                     )
                     auc_list.append(auc)
-                    score_df.loc[post_process, f"{machine}_{section}_auc"] = auc
+                    score_df.loc[post_process, f"{machine}_{product}_auc"] = auc
                     if mauc > auc:
                         mauc = auc
                     pauc = roc_auc_score(
@@ -144,7 +144,7 @@ def main(args):
                         max_fpr=0.1,
                     )
                     pauc_list.append(pauc)
-                    score_df.loc[post_process, f"{machine}_{section}_pauc"] = pauc
+                    score_df.loc[post_process, f"{machine}_{product}_pauc"] = pauc
                 score_df.loc[post_process, f"{mode}_{machine}_mauc"] = mauc
                 score_df.loc[post_process, f"{mode}_{machine}_auc"] = mean(auc_list)
                 score_df.loc[post_process, f"{mode}_{machine}_pauc"] = mean(pauc_list)

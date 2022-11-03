@@ -8,7 +8,7 @@ import torch
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import f1_score
 
-from tensorboardX import SummaryWriter
+from tensorboard import SummaryWriter
 
 
 from serial_oe.utils import mixup_for_outlier
@@ -47,8 +47,8 @@ class OECTrainer(object):
         self.finish_train = False
         self.epoch_valid_pred_machine = np.empty((0, 1))
         self.epoch_valid_y_machine = np.empty((0, 1))
-        self.epoch_valid_y_section = np.empty(0)
-        self.epoch_valid_pred_section = np.empty((0, config["model_params"]["out_dim"]))
+        self.epoch_valid_y_product = np.empty(0)
+        self.epoch_valid_pred_product = np.empty((0, config["model_params"]["out_dim"]))
         self.total_train_loss = defaultdict(float)
         self.total_valid_loss = defaultdict(float)
         self.best_loss = 99999
@@ -121,10 +121,10 @@ class OECTrainer(object):
     def _train_step(self, batch):
         """Train model one step."""
         machine = batch["machine"].to(self.device)
-        section_idx = machine.bool()
+        product_idx = machine.bool()
         machine = machine.unsqueeze(1)
-        section = batch["section"].to(self.device)
-        section = torch.nn.functional.one_hot(section, num_classes=7).float()[
+        product = batch["product"].to(self.device)
+        product = torch.nn.functional.one_hot(product, num_classes=7).float()[
             :, : self.model.out_dim
         ]  # To avoid ToyConveyor's error.
         wave = batch["wave"].to(self.device)
@@ -133,13 +133,13 @@ class OECTrainer(object):
                 max_step=self.config["train_max_epochs"] * self.steps_per_epoch,
                 step=self.steps,
             ):
-                wave, machine, section, section_idx = mixup_for_outlier(
+                wave, machine, product, product_idx = mixup_for_outlier(
                     wave,
                     machine,
-                    section,
+                    product,
                     alpha=self.config["mixup_alpha"],
-                    use_neg_section_as_zero=self.config.get(
-                        "use_neg_section_as_zero", False
+                    use_neg_product_as_zero=self.config.get(
+                        "use_neg_product_as_zero", False
                     ),
                 )
         y_ = self.model(wave)
@@ -147,23 +147,23 @@ class OECTrainer(object):
             self.criterion["machine_loss"](y_["machine"], machine)
             / self.config["accum_grads"]
         )
-        section_pred = y_["section"][section_idx]
-        section_loss = (
-            self.criterion["section_loss"](
-                section_pred,
-                section[section_idx],
+        product_pred = y_["product"][product_idx]
+        product_loss = (
+            self.criterion["product_loss"](
+                product_pred,
+                product[product_idx],
             )
             / self.config["accum_grads"]
         )
         loss = (
             self.config.get("machine_loss_lambda", 1) * machine_loss
-            + self.config["section_loss_lambda"] * section_loss
+            + self.config["product_loss_lambda"] * product_loss
         )
         loss.backward()
         self.forward_count += 1
         if self.forward_count == self.config["accum_grads"]:
             self.total_train_loss["train/machine_loss"] += machine_loss.item()
-            self.total_train_loss["train/section_loss"] += section_loss.item()
+            self.total_train_loss["train/product_loss"] += product_loss.item()
             self.total_train_loss["train/loss"] += loss.item()
 
             # update parameters
@@ -181,8 +181,6 @@ class OECTrainer(object):
     def _train_epoch(self):
         """Train model one epoch."""
         self.model.train()
-        if self.metric_fc is not None:
-            self.metric_fc.train()
         for steps_per_epoch, batch in enumerate(self.data_loader["train"]):
             # train one step
             self._train_step(batch)
@@ -207,9 +205,9 @@ class OECTrainer(object):
     def _valid_step(self, batch):
         """Validate model one step."""
         machine = batch["machine"].to(self.device)
-        section_idx = batch["machine"].bool()
-        section = batch["section"].to(self.device)[section_idx]
-        section = torch.nn.functional.one_hot(section, num_classes=7).float()[
+        product_idx = batch["machine"].bool()
+        product = batch["product"].to(self.device)[product_idx]
+        product = torch.nn.functional.one_hot(product, num_classes=7).float()[
             :, : self.model.out_dim
         ]  # To avoid ToyConveyor's error.
         with torch.no_grad():
@@ -218,19 +216,19 @@ class OECTrainer(object):
                 self.criterion["machine_loss"](y_["machine"], machine.unsqueeze(1))
                 / self.config["accum_grads"]
             )
-            section_pred = y_["section"][section_idx]
-            section_loss = (
-                self.criterion["section_loss"](section_pred, section)
+            product_pred = y_["product"][product_idx]
+            product_loss = (
+                self.criterion["product_loss"](product_pred, product)
                 / self.config["accum_grads"]
             )
             loss = self.config.get("machine_loss_lambda", 1) * machine_loss
-            if section_idx.sum() != 0:
-                loss += self.config["section_loss_lambda"] * section_loss
+            if product_idx.sum() != 0:
+                loss += self.config["product_loss_lambda"] * product_loss
             self.forward_count += 1
             if self.forward_count == self.config["accum_grads"]:
                 self.total_valid_loss["valid/machine_loss"] += machine_loss.item()
-                if section_idx.sum() != 0:
-                    self.total_valid_loss["valid/section_loss"] += section_loss.item()
+                if product_idx.sum() != 0:
+                    self.total_valid_loss["valid/product_loss"] += product_loss.item()
                 self.total_valid_loss["valid/loss"] += loss.item()
                 self.forward_count = 0
         self.epoch_valid_pred_machine = np.concatenate(
@@ -239,13 +237,13 @@ class OECTrainer(object):
         self.epoch_valid_y_machine = np.concatenate(
             [self.epoch_valid_y_machine, machine.cpu().numpy()[:, np.newaxis]]
         )
-        if section_idx.sum() != 0:
-            self.epoch_valid_pred_section = np.concatenate(
-                [self.epoch_valid_pred_section, section_pred.cpu().numpy()]
+        if product_idx.sum() != 0:
+            self.epoch_valid_pred_product = np.concatenate(
+                [self.epoch_valid_pred_product, product_pred.cpu().numpy()]
             )
-            section = torch.argmax(section, dim=1)
-            self.epoch_valid_y_section = np.concatenate(
-                [self.epoch_valid_y_section, section.cpu().numpy()]
+            product = torch.argmax(product, dim=1)
+            self.epoch_valid_y_product = np.concatenate(
+                [self.epoch_valid_y_product, product.cpu().numpy()]
             )
 
     def _valid_epoch(self):
@@ -264,15 +262,15 @@ class OECTrainer(object):
         machine_auc = roc_auc_score(
             self.epoch_valid_y_machine, self.epoch_valid_pred_machine
         )
-        section_micro_f1 = f1_score(
-            self.epoch_valid_y_section,
-            np.argmax(self.epoch_valid_pred_section, 1),
+        product_micro_f1 = f1_score(
+            self.epoch_valid_y_product,
+            np.argmax(self.epoch_valid_pred_product, 1),
             average="micro",
         )
         self._write_to_tensorboard(
             {
                 "valid/machine_auc": machine_auc,
-                "valid/section_micro_f1": section_micro_f1,
+                "valid/product_micro_f1": product_micro_f1,
             }
         )
         self.total_valid_loss["valid/loss"] /= steps_per_epoch + 1
@@ -285,8 +283,8 @@ class OECTrainer(object):
             )
         self.epoch_valid_pred_machine = np.empty((0, 1))
         self.epoch_valid_y_machine = np.empty((0, 1))
-        self.epoch_valid_y_section = np.empty(0)
-        self.epoch_valid_pred_section = np.empty((0, self.model.out_dim))
+        self.epoch_valid_y_product = np.empty(0)
+        self.epoch_valid_pred_product = np.empty((0, self.model.out_dim))
         self.total_valid_loss = defaultdict(float)
 
     def _write_to_tensorboard(self, loss, steps_per_epoch=1):

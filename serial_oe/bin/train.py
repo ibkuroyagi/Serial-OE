@@ -245,8 +245,8 @@ def main():
         "machine_loss": getattr(serial_oe.losses, config["machine_loss_type"],)(
             **config["machine_loss_params"]
         ).to(device),
-        "section_loss": getattr(serial_oe.losses, config["section_loss_type"],)(
-            **config["section_loss_params"]
+        "product_loss": getattr(serial_oe.losses, config["product_loss_type"],)(
+            **config["product_loss_params"]
         ).to(device),
     }
     optimizer_class = getattr(

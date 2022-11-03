@@ -168,11 +168,11 @@ def main():
         )
         for mode, loader in loader_dict.items():
             pred_machine = np.empty((0, 1))
-            pred_section = np.empty((0, config["model_params"]["out_dim"]))
+            pred_product = np.empty((0, config["model_params"]["out_dim"]))
             embed = np.empty((0, config["model_params"]["embedding_size"]))
             path_list = np.empty((0, 1))
             split_list = np.empty((0, 1))
-            section_list = np.empty((0, 1))
+            product_list = np.empty((0, 1))
             is_normal_list = np.empty((0, 1))
 
             for batch in loader:
@@ -182,8 +182,8 @@ def main():
                     pred_machine = np.concatenate(
                         [pred_machine, y_["machine"].cpu().numpy()], axis=0
                     )
-                    pred_section = np.concatenate(
-                        [pred_section, y_["section"].cpu().numpy()], axis=0
+                    pred_product = np.concatenate(
+                        [pred_product, y_["product"].cpu().numpy()], axis=0
                     )
                     embed = np.concatenate(
                         [embed, y_["embedding"].cpu().numpy()], axis=0
@@ -192,8 +192,8 @@ def main():
                     split_list = np.concatenate(
                         [split_list, np.ones((len(y_["embedding"]), 1)) * i]
                     )
-                    section_list = np.concatenate(
-                        [section_list, batch["section"][:, None]]
+                    product_list = np.concatenate(
+                        [product_list, batch["product"][:, None]]
                     )
                     is_normal_list = np.concatenate(
                         [is_normal_list, batch["is_normal"][:, None]]
@@ -202,39 +202,39 @@ def main():
             embed_cols = [
                 f"e{i}" for i in range(config["model_params"]["embedding_size"])
             ]
-            pred_section_cols = [
-                f"pred_section{i}" for i in range(config["model_params"]["out_dim"])
+            pred_product_cols = [
+                f"pred_product{i}" for i in range(config["model_params"]["out_dim"])
             ]
             columns = (
                 [
                     "path",
                     "split",
-                    "section",
+                    "product",
                     "is_normal",
                     "pred_machine",
                     "embed_norm",
                 ]
-                + pred_section_cols
+                + pred_product_cols
                 + embed_cols
             )
 
             logging.info(
                 f"path_list:{path_list.shape}, split_list:{split_list.shape}, "
-                f"section_list:{section_list.shape}, "
+                f"product_list:{product_list.shape}, "
                 f"is_normal_list:{is_normal_list.shape}, pred_machine:{pred_machine.shape}, "
-                f"pred_section:{pred_section.shape}, embed:{embed.shape}"
+                f"pred_product:{pred_product.shape}, embed:{embed.shape}"
             )
             df = pd.DataFrame(embed, columns=embed_cols)
             df["path"] = path_list
             df["split"] = split_list.astype(int)
-            df["section"] = section_list.astype(int)
+            df["product"] = product_list.astype(int)
             df["is_normal"] = is_normal_list.astype(int)
             df["pred_machine"] = pred_machine
             df["embed_norm"] = (
                 np.sqrt(np.power(embed, 2).sum(1))
                 / config["model_params"]["embedding_size"]
             )
-            df[pred_section_cols] = pred_section
+            df[pred_product_cols] = pred_product
 
             df = df[columns]
             csv_path = checkpoint.replace(".pkl", f"_{mode}.csv")

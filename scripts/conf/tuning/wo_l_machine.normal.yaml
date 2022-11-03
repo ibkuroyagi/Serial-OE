@@ -1,4 +1,4 @@
-# section_loss_lambda: 1.0, machine_loss_lambda: 0, w/o mixup, 疑似異常データは、ID分類の負例として使う. 実質的にDDCSADと同じ
+# product_loss_lambda: 1.0, machine_loss_lambda: 0, w/o mixup, 疑似異常データは、ID分類の負例として使う. 実質的にDDCSADと同じ
 ###########################################################
 #                NETWORK ARCHITECTURE SETTING             #
 ###########################################################
@@ -21,18 +21,18 @@ machine_loss_type: BCEWithLogitsLoss
 machine_loss_params:
   reduction: mean
 
-section_loss_type: BCEWithLogitsLoss
-section_loss_params:
+product_loss_type: BCEWithLogitsLoss
+product_loss_params:
   reduction: mean
 
-section_loss_lambda: 1.0
+product_loss_lambda: 1.0
 machine_loss_lambda: 0
 # mixup related
 mixup_alpha: 0.2
 ###########################################################
 #                  DATA LOADER SETTING                    #
 ###########################################################
-use_neg_section_as_zero: true
+use_neg_product_as_zero: true
 
 accum_grads: 1
 

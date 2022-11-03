@@ -60,7 +60,7 @@ class ASDDataset(Dataset):
             items: Dict
                 wave: (ndarray) Wave (T, ).
                 machine: (str) Name of machine.
-                section: (int) Number of machine id.
+                product: (int) Number of machine id.
         """
         if self.allow_cache and (self.caches_size > idx):
             if len(self.caches[idx]) != 0:
@@ -72,9 +72,9 @@ class ASDDataset(Dataset):
             items["wave"] -= self.statistic["mean"]
             items["wave"] /= self.statistic["std"]
         items["machine"] = path.split("/")[-3]
-        items["section"] = int(path.split("/")[-1].split("_")[2])
+        items["product"] = int(path.split("/")[-1].split("_")[2])
         if items["machine"] in ["ToyCar", "ToyConveyor"]:
-            items["section"] -= 1
+            items["product"] -= 1
         items["is_normal"] = int(path.split("/")[-1].split("_")[0] == "normal")
         if self.allow_cache and (self.caches_size > idx):
             self.caches[idx] = items
