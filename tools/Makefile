@@ -4,6 +4,7 @@ all: virtualenv
 virtualenv:
 	./setup_anaconda.sh venv asd_env 3.9
 	. ./activate_python.sh; conda update -n base -y -c defaults conda
+	. ./activate_python.sh; conda update -n base -y -c conda-forge conda
 	git clone https://github.com/rwightman/pytorch-image-models.git
 	. ./activate_python.sh; cd pytorch-image-models; pip install .
 	. ./activate_python.sh; cd ../; pip install -e .
