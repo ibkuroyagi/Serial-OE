@@ -114,14 +114,14 @@ def main(args):
         agg_df = pd.read_csv(agg_path)
         machine = agg_path.split("/")[1]
         if machine == "ToyCar":
-            dev_products = [0, 1, 2, 3]
-            eval_products = [4, 5, 6]
+            dev_products = [4, 5, 6]
+            eval_products = [0, 1, 2, 3]
         elif machine == "ToyConveyor":
-            dev_products = [0, 1, 2]
-            eval_products = [3, 4, 5]
+            dev_products = [3, 4, 5]
+            eval_products = [0, 1, 2]
         else:
-            dev_products = [0, 2, 4, 6]
-            eval_products = [1, 3, 5]
+            dev_products = [1, 3, 5]
+            eval_products = [0, 2, 4, 6]
         products = {"dev": dev_products, "eval": eval_products}
         for post_process in post_processes:
             for mode in modes:

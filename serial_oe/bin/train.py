@@ -142,7 +142,7 @@ def main():
             format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s",
         )
         logging.warning("Skip DEBUG/INFO messages")
-
+    logging.info(f"device:{device}")
     # check directory existence
     if not os.path.exists(args.outdir):
         os.makedirs(args.outdir)
