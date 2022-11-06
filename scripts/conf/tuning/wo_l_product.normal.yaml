@@ -1,4 +1,3 @@
-# product_loss_lambda: 1.0, machine_loss_lambda: 0, w/o mixup, 疑似異常データは、ID分類の負例として使う. 実質的にDDCSADと同じ
 ###########################################################
 #                NETWORK ARCHITECTURE SETTING             #
 ###########################################################
@@ -12,8 +11,6 @@ model_params:
   n_mels: 224
   power: 1.0
   out_dim: 7
-  
-
 ###########################################################
 #               ADVERSARIAL LOSS SETTING                  #
 ###########################################################
@@ -33,15 +30,12 @@ mixup_alpha: 0.2
 #                  DATA LOADER SETTING                    #
 ###########################################################
 use_neg_product_as_zero: false
-
 accum_grads: 1
-
 n_pos: 64 # Batch size.
 n_neg: 64
 pin_memory: true # Whether to pin memory in Pytorch DataLoader.
 num_workers: 0 # Number of workers in Pytorch DataLoader.
 allow_cache: true # Whether to allow cache in dataset. If true, it requires cpu memory.
-
 ###########################################################
 #             OPTIMIZER & SCHEDULER SETTING               #
 ###########################################################
