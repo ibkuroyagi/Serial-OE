@@ -66,7 +66,6 @@ def main():
     os.makedirs(args.dumpdir, exist_ok=True)
     if not os.path.isfile(args.statistic_path):
         wave_fname_list = os.listdir(args.download_dir)
-        # wave_fname_list = [fname for fname in wave_fname_list if "target" not in fname]
         wave, _ = librosa.load(
             os.path.join(args.download_dir, wave_fname_list[0]), sr=sr
         )
