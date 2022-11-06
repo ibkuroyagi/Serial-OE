@@ -18,7 +18,7 @@ make
 To use the eval directory of the DCASE 2020 Task2 Challenge dataset, put it in the dev directory in the same format.
 
 ```bash
-downloads  (We expect dev directory contain all IDs {00,01,..,06}.)
+scripts/downloads  (We expect dev directory contain all IDs {00,01,..,06}.)
 |--dev
    |--fan
    |  |--test

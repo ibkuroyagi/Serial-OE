@@ -60,7 +60,7 @@ if [ "${stage}" -le 0 ] && [ "${stop_stage}" -ge 0 ]; then
     # To use the eval directory of the DCASE 2020 Task2 Challenge dataset,
     # put it in the dev directory in the same format.
 
-    # downloads
+    # scripts/downloads
     # |--dev  (We expect dev directory contain all IDs {00,01,..,06}.)
     #    |--fan
     #    |  |--test
@@ -132,14 +132,14 @@ if [ "${stage}" -le 2 ] && [ "${stop_stage}" -ge 2 ]; then
 fi
 
 tag+="${end_str}"
-if [ ${seed} -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
+if [ "${seed}" -ge 0 ] && [ "${n_anomaly}" -le -1 ]; then
     log "For simple ASD model's seed : ${seed}."
     tag+="_seed${seed}"
 fi
 
 anomaly_end_str=""
 train_anomaly_scp=""
-if [ ${n_anomaly} -ge 0 ]; then
+if [ "${n_anomaly}" -ge 0 ]; then
     anomaly_end_str+="_max${max_anomaly_pow}_seed${seed}"
     train_anomaly_scp+="${dumpdir}/dev/${pos_machine}/test/train_anomaly${n_anomaly}${anomaly_end_str}.scp"
     tag+="_anomaly${n_anomaly}${anomaly_end_str}"
@@ -156,7 +156,7 @@ if [ "${stage}" -le 3 ] && [ "${stop_stage}" -ge 3 ]; then
     done
     log "Training start. See the progress via ${outdir}/train_${pos_machine}_${tag}.log."
     # shellcheck disable=SC2154,SC2086
-    ${cuda_cmd} --gpu "${n_gpus}" "${outdir}/train_${pos_machine}_${tag}.log" \
+    ${train_cmd} --gpu "${n_gpus}" "${outdir}/train_${pos_machine}_${tag}.log" \
         python -m serial_oe.bin.train \
         --pos_machine "${pos_machine}" \
         --train_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/train${end_str}.scp" \
@@ -183,7 +183,7 @@ fi
 if [ "${stage}" -le 4 ] && [ "${stop_stage}" -ge 4 ]; then
     log "Stage 4: Embedding calculation start. See the progress via ${outdir}/embed_${pos_machine}_${tag}.log."
     # shellcheck disable=SC2154,SC2086
-    ${cuda_cmd} --gpu "${n_gpus}" "${outdir}/embed_${pos_machine}_${tag}.log" \
+    ${train_cmd} --gpu "${n_gpus}" "${outdir}/embed_${pos_machine}_${tag}.log" \
         python -m serial_oe.bin.embed \
         --valid_pos_machine_scp "${dumpdir}/dev/${pos_machine}/train/valid${end_str}.scp" \
         --eval_pos_machine_scp "${dumpdir}/dev/${pos_machine}/test/eval${anomaly_end_str}.scp" \
@@ -197,7 +197,7 @@ fi
 if [ "${stage}" -le 5 ] && [ "${stop_stage}" -ge 5 ]; then
     log "Stage 5: Inference start. See the progress via ${outdir}/infer_${pos_machine}${feature}_${tag}.log."
     # shellcheck disable=SC2154,SC2086
-    ${cuda_cmd} "${outdir}/infer_${pos_machine}${feature}_${tag}.log" \
+    ${train_cmd} "${outdir}/infer_${pos_machine}${feature}_${tag}.log" \
         python -m serial_oe.bin.infer \
         --pos_machine "${pos_machine}" \
         --checkpoints ${checkpoints} \
