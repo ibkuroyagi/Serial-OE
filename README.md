@@ -1,20 +1,23 @@
 # Anomalous Sound Detection using Serial method with Outlier Exposure
 
 ## Requirements
+
 - Python 3.9+
 - Cuda 11.3
 
-
-
 ## Setup
+
 ```bash
-$ git clone https://github.com/ibkuroyagi/Serial-OE.git
-$ cd Serial-OE/tools
-$ make
+git clone https://github.com/ibkuroyagi/Serial-OE.git
+cd Serial-OE/tools
+make
 ```
+
 ## Dataset
+
 To use the eval directory of the DCASE 2020 Task2 Challenge dataset, put it in the dev directory in the same format.
-```
+
+```bash
 downloads  (We expect dev directory contain all IDs {00,01,..,06}.)
 |--dev
    |--fan
@@ -40,7 +43,9 @@ downloads  (We expect dev directory contain all IDs {00,01,..,06}.)
    |  |  |--**
    |  |  |--normal_id_06_00000914.wav
 ```
+
 ## Recipe
+
 To run the recipe, please follow the below instruction.
 
 ```bash
@@ -66,7 +71,6 @@ $ python -m tensorboard.main --logdir exp
 $ ./job.sh --stage 2
 
 ```
-
 
 ## Author
 
